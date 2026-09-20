@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Tag, Paperclip, Trash2, Plus, Clock, FileText, User, Activity, AlertCircle } from 'lucide-react';
 import { getSessionNotes, createNote, deleteNote } from '../../utils/api';
 
-const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
+const NotesSidebar = ({ sessionId, onClose, onNavigate, isDark: propIsDark }) => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -12,6 +12,66 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
   const [draftAttachments, setDraftAttachments] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  // Self-managed or inherited theme state
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof propIsDark === 'boolean') return propIsDark;
+    const saved = localStorage.getItem('nexus_theme');
+    return saved === 'dark';
+  });
+
+  useEffect(() => {
+    if (typeof propIsDark === 'boolean') {
+      setIsDark(propIsDark);
+    }
+  }, [propIsDark]);
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const saved = localStorage.getItem('nexus_theme');
+      setIsDark(saved === 'dark');
+    };
+
+    window.addEventListener('storage', handleThemeChange);
+    window.addEventListener('nexus_theme_change', handleThemeChange);
+
+    return () => {
+      window.removeEventListener('storage', handleThemeChange);
+      window.removeEventListener('nexus_theme_change', handleThemeChange);
+    };
+  }, []);
+
+  const theme = isDark ? {
+    panelBg: '#15171c',
+    headerBg: '#15171c',
+    border: '#292c35',
+    cardBg: '#1b1d24',
+    textareaBg: '#1b1d24',
+    textPrimary: '#ffffff',
+    textSecondary: '#c4c6ce',
+    textMuted: '#8b8e99',
+    btnPrimaryBg: '#242732',
+    btnPrimaryBorder: '#3d4255',
+    btnPrimaryText: '#ffffff',
+    tagBg: '#242732',
+    tagBorder: '#3d4255',
+    tagText: '#ffffff'
+  } : {
+    panelBg: '#ffffff',
+    headerBg: '#fafafa',
+    border: '#e4e4df',
+    cardBg: '#ffffff',
+    textareaBg: '#f7f7f5',
+    textPrimary: '#111111',
+    textSecondary: '#444446',
+    textMuted: '#717175',
+    btnPrimaryBg: '#111111',
+    btnPrimaryBorder: '#111111',
+    btnPrimaryText: '#ffffff',
+    tagBg: '#f2f2ef',
+    tagBorder: '#e4e4df',
+    tagText: '#111111'
+  };
 
   const fetchNotes = useCallback(async () => {
     if (!sessionId) return;
@@ -123,20 +183,28 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
   const renderAttachment = (attachment, idx, isDraft = false) => {
     let icon = <Paperclip size={12} />;
     let label = 'Attachment';
-    let colorClass = 'text-gray-600 bg-gray-100 border-gray-200';
+    let colorClass = isDark 
+      ? 'text-neutral-300 bg-neutral-800 border-neutral-700' 
+      : 'text-gray-600 bg-gray-100 border-gray-200';
 
     if (attachment.type === 'entity') {
       icon = <User size={12} />;
       label = attachment.name || 'Entity';
-      colorClass = 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100';
+      colorClass = isDark
+        ? 'text-blue-300 bg-blue-950/50 border-blue-800/60 hover:bg-blue-900/50'
+        : 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100';
     } else if (attachment.type === 'timeline_event') {
       icon = <Activity size={12} />;
       label = attachment.title || 'Event';
-      colorClass = 'text-purple-600 bg-purple-50 border-purple-200 hover:bg-purple-100';
+      colorClass = isDark
+        ? 'text-purple-300 bg-purple-950/50 border-purple-800/60 hover:bg-purple-900/50'
+        : 'text-purple-600 bg-purple-50 border-purple-200 hover:bg-purple-100';
     } else if (attachment.type === 'evidence') {
       icon = <FileText size={12} />;
       label = attachment.filename || 'File';
-      colorClass = 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100';
+      colorClass = isDark
+        ? 'text-emerald-300 bg-emerald-950/50 border-emerald-800/60 hover:bg-emerald-900/50'
+        : 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100';
     }
 
     return (
@@ -150,8 +218,9 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
         <span className="truncate">{label}</span>
         {isDraft && (
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); removeAttachment(idx); }} 
-            className="ml-1 hover:text-black opacity-60 hover:opacity-100 focus:outline-none"
+            className="ml-1 hover:text-black opacity-60 hover:opacity-100 focus:outline-none cursor-pointer"
           >
             <X size={10} />
           </button>
@@ -161,37 +230,78 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
   };
 
   return (
-    <div className="w-[350px] h-full bg-white border-l border-[#e8e8e4] flex flex-col shadow-[-4px_0_20px_rgba(0,0,0,0.02)] transition-all z-20">
+    <aside 
+      className="w-80 md:w-96 shrink-0 h-full flex flex-col shadow-[-4px_0_20px_rgba(0,0,0,0.02)] transition-all duration-300 z-20 select-none"
+      style={{
+        backgroundColor: theme.panelBg,
+        borderLeft: `1px solid ${theme.border}`,
+        color: theme.textSecondary
+      }}
+    >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[#e8e8e4] flex items-center justify-between shrink-0 bg-[#fafafa]">
-        <div className="text-[14px] font-semibold text-[#1f1f1f] flex items-center gap-2 whitespace-nowrap tracking-tight">
-          <FileText size={16} className="text-[#71717a]" />
+      <div 
+        className="px-5 py-4 flex items-center justify-between shrink-0 transition-colors"
+        style={{
+          backgroundColor: theme.headerBg,
+          borderBottom: `1px solid ${theme.border}`
+        }}
+      >
+        <div 
+          className="text-[14px] font-bold flex items-center gap-2 whitespace-nowrap tracking-tight"
+          style={{ color: theme.textPrimary }}
+        >
+          <FileText size={16} style={{ color: theme.textMuted }} />
           Investigation Notes
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg text-[#a1a19b] hover:text-[#1f1f1f] hover:bg-[#f4f4f4] transition-colors border-none bg-transparent">
-            <X size={16} />
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="p-1.5 rounded-lg transition-colors cursor-pointer hover:opacity-75"
+            style={{
+              color: theme.textMuted,
+              backgroundColor: isDark ? '#1b1d24' : '#f4f4f4',
+              border: `1px solid ${theme.border}`
+            }}
+            title="Close Notes"
+          >
+            <X size={15} />
           </button>
         )}
       </div>
 
       {/* Draft Area */}
       <div 
-        className={`p-4 border-b border-[#e8e8e4] bg-white shrink-0 transition-colors ${isDraggingOver ? 'bg-[#f4fbff] border-blue-200' : ''}`}
+        className="p-4 shrink-0 transition-colors relative"
+        style={{
+          backgroundColor: theme.panelBg,
+          borderBottom: `1px solid ${theme.border}`
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {isDraggingOver && (
-          <div className="absolute inset-0 bg-blue-50/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center border-2 border-dashed border-blue-400 rounded-lg m-4 pointer-events-none">
-            <Paperclip size={24} className="text-blue-500 mb-2" />
-            <p className="text-sm font-medium text-blue-700">Drop to attach to note</p>
+          <div 
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center border-2 border-dashed rounded-xl m-3 pointer-events-none"
+            style={{
+              backgroundColor: isDark ? 'rgba(36, 39, 50, 0.85)' : 'rgba(239, 246, 255, 0.85)',
+              borderColor: isDark ? '#3d4255' : '#60a5fa'
+            }}
+          >
+            <Paperclip size={24} className={isDark ? 'text-neutral-200 mb-2' : 'text-blue-500 mb-2'} />
+            <p className="text-xs font-semibold" style={{ color: theme.textPrimary }}>Drop to attach to note</p>
           </div>
         )}
         
         <div className="relative">
           <textarea
-            className="w-full text-sm text-[#1f1f1f] bg-[#f4f4f4] border border-[#e8e8e4] rounded-xl p-3 placeholder-[#a1a19b] focus:outline-none focus:border-[#d4d4cf] focus:ring-2 focus:ring-[#f4f4f4] min-h-[100px] resize-none"
+            className="w-full text-xs sm:text-sm rounded-xl p-3 focus:outline-none min-h-[96px] resize-none transition-colors"
+            style={{
+              backgroundColor: theme.textareaBg,
+              border: `1px solid ${theme.border}`,
+              color: theme.textPrimary
+            }}
             placeholder="Write a note... Drag and drop entities, events, or files here to attach them."
             value={draftContent}
             onChange={(e) => setDraftContent(e.target.value)}
@@ -205,28 +315,45 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
           )}
 
           {/* Tags rendering & input */}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             {draftTags.map(tag => (
-              <span key={tag} className="flex items-center gap-1 text-[10px] bg-zinc-100 text-zinc-700 px-2 py-1 rounded-full border border-zinc-200">
-                <Tag size={10} /> {tag}
-                <button onClick={() => removeTag(tag)} className="hover:text-black opacity-60"><X size={10} /></button>
+              <span 
+                key={tag} 
+                className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full"
+                style={{
+                  backgroundColor: theme.tagBg,
+                  color: theme.tagText,
+                  border: `1px solid ${theme.tagBorder}`
+                }}
+              >
+                <Tag size={9} /> {tag}
+                <button type="button" onClick={() => removeTag(tag)} className="hover:opacity-100 opacity-60 ml-0.5 cursor-pointer"><X size={9} /></button>
               </span>
             ))}
             <input 
               type="text"
-              placeholder="Add tag and press Enter..."
+              placeholder="Add tag + Enter..."
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleAddTag}
-              className="text-[11px] bg-transparent border-none focus:outline-none text-[#71717a] placeholder-[#d4d4cf] min-w-[120px]"
+              className="text-[11px] bg-transparent border-none focus:outline-none min-w-[110px]"
+              style={{
+                color: theme.textPrimary
+              }}
             />
           </div>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-3 flex justify-end">
             <button 
+              type="button"
               onClick={handleSaveNote}
               disabled={!draftContent.trim() && draftAttachments.length === 0}
-              className="text-xs bg-[#1f1f1f] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#3a3a3a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-none flex items-center gap-1.5"
+              className="text-xs px-4 py-2 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90"
+              style={{
+                backgroundColor: theme.btnPrimaryBg,
+                color: theme.btnPrimaryText,
+                border: `1px solid ${theme.btnPrimaryBorder}`
+              }}
             >
               <Plus size={14} /> Save Note
             </button>
@@ -236,37 +363,60 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
 
       {/* Error Banner */}
       {error && (
-        <div className="mx-4 mt-4 p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600 text-xs">
+        <div 
+          className="mx-4 mt-3 p-2.5 rounded-xl flex items-center gap-2 text-xs font-medium border"
+          style={{
+            backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2',
+            borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#fee2e2',
+            color: '#f87171'
+          }}
+        >
           <AlertCircle size={14} />
           {error}
         </div>
       )}
 
       {/* Notes List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-[#d4d4cf] scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-neutral-400/40 scrollbar-track-transparent">
         {loading && notes.length === 0 ? (
           <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-[#1f1f1f] border-t-transparent rounded-full animate-spin"></div>
+            <div 
+              className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: theme.textPrimary, borderTopColor: 'transparent' }}
+            />
           </div>
         ) : notes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center py-12 text-[#a1a19b]">
-            <FileText size={32} className="mb-3 opacity-50" />
-            <p className="text-sm">No notes yet.</p>
-            <p className="text-xs mt-1">Start typing or drag items to create one.</p>
+          <div className="flex flex-col items-center justify-center text-center py-12" style={{ color: theme.textMuted }}>
+            <FileText size={28} className="mb-2.5 opacity-40" />
+            <p className="text-xs font-semibold">No notes recorded yet</p>
+            <p className="text-[11px] mt-0.5 opacity-80">Type above or drag items into this panel</p>
           </div>
         ) : (
           notes.map(note => (
-            <div key={note.id} className="bg-white border border-[#e8e8e4] rounded-xl p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-[#d4d4cf] transition-colors group">
+            <div 
+              key={note.id} 
+              className="rounded-2xl p-3.5 transition-all group"
+              style={{
+                backgroundColor: theme.cardBg,
+                border: `1px solid ${theme.border}`,
+                boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.25)' : '0 1px 3px rgba(0,0,0,0.04)'
+              }}
+            >
               <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-1.5 text-[10px] text-[#a1a19b] font-mono">
+                <div 
+                  className="flex items-center gap-1.5 text-[10px] font-mono"
+                  style={{ color: theme.textMuted }}
+                >
                   <Clock size={10} />
                   {new Date(note.created_at).toLocaleString(undefined, {
                     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                   })}
                 </div>
                 <button 
+                  type="button"
                   onClick={() => handleDeleteNote(note.id)}
-                  className="text-[#d4d4cf] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all border-none bg-transparent p-0.5"
+                  className="opacity-0 group-hover:opacity-100 transition-all border-none bg-transparent p-0.5 cursor-pointer hover:text-red-500"
+                  style={{ color: theme.textMuted }}
                   title="Delete note"
                 >
                   <Trash2 size={12} />
@@ -274,7 +424,10 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
               </div>
               
               {note.content && (
-                <p className="text-[13px] text-[#1f1f1f] whitespace-pre-wrap leading-relaxed mb-3">
+                <p 
+                  className="text-xs sm:text-[13px] whitespace-pre-wrap leading-relaxed mb-2.5"
+                  style={{ color: theme.textSecondary }}
+                >
                   {note.content}
                 </p>
               )}
@@ -286,9 +439,20 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
               )}
 
               {note.tags && note.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[#f4f4f4]">
+                <div 
+                  className="flex flex-wrap gap-1 mt-2 pt-2"
+                  style={{ borderTop: `1px solid ${theme.border}` }}
+                >
                   {note.tags.map(tag => (
-                    <span key={tag} className="flex items-center gap-1 text-[9px] bg-[#f4f4f4] text-[#71717a] px-1.5 py-0.5 rounded border border-[#e8e8e4]">
+                    <span 
+                      key={tag} 
+                      className="flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: theme.tagBg,
+                        color: theme.textMuted,
+                        border: `1px solid ${theme.tagBorder}`
+                      }}
+                    >
                       <Tag size={8} /> {tag}
                     </span>
                   ))}
@@ -298,7 +462,7 @@ const NotesSidebar = ({ sessionId, onClose, onNavigate }) => {
           ))
         )}
       </div>
-    </div>
+    </aside>
   );
 };
 

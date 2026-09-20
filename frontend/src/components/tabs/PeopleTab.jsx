@@ -1,28 +1,72 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Users, RefreshCw, Network, List, AlertCircle, Scan, AlertTriangle, ShieldAlert, ChevronDown, ChevronUp, Flag, X, Clock, FileText, GripVertical } from 'lucide-react';
+import {
+  Users,
+  RefreshCw,
+  Network,
+  List,
+  AlertCircle,
+  Scan,
+  AlertTriangle,
+  ShieldAlert,
+  ChevronDown,
+  ChevronUp,
+  Flag,
+  X,
+  Clock,
+  FileText,
+  GripVertical
+} from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { extractEntities, getSessionGraph, getAnomalies, getEntityTimeline } from '../../utils/api';
 
 /* ── Severity style helpers ── */
-const severityConfig = {
-  critical: { bg: 'bg-red-50',         border: 'border-red-200',        text: 'text-red-600',    barColor: 'bg-red-500',      icon: ShieldAlert },
-  high:     { bg: 'bg-orange-50',      border: 'border-orange-200',     text: 'text-orange-600', barColor: 'bg-orange-500',   icon: ShieldAlert },
-  moderate: { bg: 'bg-amber-50',       border: 'border-amber-200',      text: 'text-amber-600',  barColor: 'bg-amber-500',    icon: AlertTriangle },
-  low:      { bg: 'bg-emerald-50',     border: 'border-emerald-200',    text: 'text-emerald-600',barColor: 'bg-emerald-500',  icon: Flag },
-  normal:   { bg: 'bg-[#f4f4f4]',      border: 'border-[#e8e8e4]',      text: 'text-[#71717a]',  barColor: 'bg-[#a1a19b]',    icon: Flag },
-};
-
-const getSeverityStyle = (severity) => severityConfig[severity] || severityConfig.normal;
-
+const getSeverityConfig = (isDark) => ({
+  critical: {
+    bg: isDark ? 'bg-red-950/30' : 'bg-red-50',
+    border: isDark ? 'border-red-800/40' : 'border-red-200',
+    text: isDark ? 'text-red-400' : 'text-red-600',
+    barColor: 'bg-red-500',
+    icon: ShieldAlert
+  },
+  high: {
+    bg: isDark ? 'bg-orange-950/30' : 'bg-orange-50',
+    border: isDark ? 'border-orange-800/40' : 'border-orange-200',
+    text: isDark ? 'text-orange-400' : 'text-orange-600',
+    barColor: 'bg-orange-500',
+    icon: ShieldAlert
+  },
+  moderate: {
+    bg: isDark ? 'bg-amber-950/30' : 'bg-amber-50',
+    border: isDark ? 'border-amber-800/40' : 'border-amber-200',
+    text: isDark ? 'text-amber-400' : 'text-amber-600',
+    barColor: 'bg-amber-500',
+    icon: AlertTriangle
+  },
+  low: {
+    bg: isDark ? 'bg-emerald-950/30' : 'bg-emerald-50',
+    border: isDark ? 'border-emerald-800/40' : 'border-emerald-200',
+    text: isDark ? 'text-emerald-400' : 'text-emerald-600',
+    barColor: 'bg-emerald-500',
+    icon: Flag
+  },
+  normal: {
+    bg: isDark ? 'bg-[#1e2028]' : 'bg-[#f4f4f4]',
+    border: isDark ? 'border-[#2d313d]' : 'border-[#e8e8e4]',
+    text: isDark ? 'text-[#a1a1aa]' : 'text-[#71717a]',
+    barColor: 'bg-[#a1a19b]',
+    icon: Flag
+  },
+});
 
 /* ── EntityCard (list-view) ── */
-const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timelineData, isNotesOpen }) => {
+const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timelineData, isNotesOpen, isDark }) => {
   const [expanded, setExpanded] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
 
-  const anomaly   = entity.anomaly || { score: 0, severity: 'normal', triggered_flags: [], summary: '' };
-  const style     = getSeverityStyle(anomaly.severity);
-  const IconComp  = style.icon;
+  const anomaly = entity.anomaly || { score: 0, severity: 'normal', triggered_flags: [], summary: '' };
+  const severityConfig = getSeverityConfig(isDark);
+  const style = severityConfig[anomaly.severity] || severityConfig.normal;
+  const IconComp = style.icon;
 
   const handleTimelineClick = () => {
     if (!showTimeline && onViewTimeline) {
@@ -34,9 +78,14 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
   const tl = timelineData || { loading: false, error: null, events: [] };
 
   return (
-    <div 
+    <div
       id={`entity-${entity.name}`.replace(/[^a-zA-Z0-9_-]/g, '')}
-      className={`bg-white border border-[#e8e8e4] rounded-2xl hover:bg-[#f6f7ed] hover:border-[#d4d4cf] transition-all overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] relative group ${isNotesOpen ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`rounded-2xl transition-all overflow-hidden shadow-sm relative group ${isNotesOpen ? 'cursor-grab active:cursor-grabbing' : ''
+        }`}
+      style={{
+        backgroundColor: isDark ? '#171920' : '#ffffff',
+        border: `1px solid ${isDark ? '#292c36' : '#e8e8e4'}`
+      }}
       draggable={isNotesOpen}
       onDragStart={(e) => {
         if (!isNotesOpen) return;
@@ -49,10 +98,11 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
       }}
     >
       {isNotesOpen && (
-        <div className="absolute top-4 right-4 text-[#d4d4cf] opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-4 right-4 text-[#8b8e99] opacity-0 group-hover:opacity-100 transition-opacity">
           <GripVertical size={16} />
         </div>
       )}
+
       {/* ── Top section ── */}
       <div className="p-5 pb-3">
         <div className="flex items-start justify-between mb-3">
@@ -64,9 +114,11 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
               {entity.name?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div>
-              <h3 className="text-[#1f1f1f] font-medium">{entity.name}</h3>
+              <h3 className="font-semibold text-sm" style={{ color: isDark ? '#ffffff' : '#1f1f1f' }}>
+                {entity.name}
+              </h3>
               <span
-                className="text-xs px-2 py-0.5 rounded capitalize"
+                className="text-[11px] px-2 py-0.5 rounded capitalize font-mono"
                 style={{ backgroundColor: getNodeColor(entity) + '20', color: getNodeColor(entity) }}
               >
                 {entity.type || 'Unknown'}
@@ -78,7 +130,7 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
         {/* ── Anomaly score badge ── */}
         <button
           onClick={() => setExpanded(prev => !prev)}
-          className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded border text-xs font-mono cursor-pointer transition-colors ${style.bg} ${style.border} ${style.text}`}
+          className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono cursor-pointer transition-colors ${style.bg} ${style.border} ${style.text}`}
         >
           <div className="flex items-center gap-1.5">
             <IconComp size={12} />
@@ -90,14 +142,13 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
 
         {/* ── Expandable anomaly details ── */}
         {expanded && (
-          <div className={`mt-2 rounded border p-3 text-xs space-y-2 ${style.bg} ${style.border}`}>
-            {/* Score bar */}
+          <div className={`mt-2 rounded-xl border p-3 text-xs space-y-2 ${style.bg} ${style.border}`}>
             <div>
-              <div className="flex justify-between text-[#a1a19b] mb-1">
+              <div className="flex justify-between text-[#8b8e99] mb-1 font-mono">
                 <span>Score</span>
                 <span className={style.text}>{anomaly.score}%</span>
               </div>
-              <div className="w-full h-1.5 bg-[#e8e8e4] rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${style.barColor}`}
                   style={{ width: `${anomaly.score}%` }}
@@ -105,13 +156,12 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
               </div>
             </div>
 
-            {/* Triggered flags */}
             {anomaly.triggered_flags?.length > 0 && (
               <div>
-                <div className="text-[#a1a19b] mb-1">Triggered Flags</div>
+                <div className="text-[#8b8e99] mb-1 font-mono">Triggered Flags</div>
                 <ul className="space-y-1">
                   {anomaly.triggered_flags.map((flag, i) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[#3a3a3a]">
+                    <li key={i} className="flex items-start gap-1.5" style={{ color: isDark ? '#c4c6ce' : '#3a3a3a' }}>
                       <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${style.barColor}`} />
                       {flag}
                     </li>
@@ -120,34 +170,42 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
               </div>
             )}
 
-            {/* Summary */}
             {anomaly.summary && (
               <div>
-                <div className="text-[#a1a19b] mb-1">Summary</div>
-                <p className="text-[#3a3a3a] leading-relaxed">{anomaly.summary}</p>
+                <div className="text-[#8b8e99] mb-1 font-mono">Summary</div>
+                <p className="leading-relaxed" style={{ color: isDark ? '#c4c6ce' : '#3a3a3a' }}>{anomaly.summary}</p>
               </div>
             )}
           </div>
         )}
 
-        {/* ── Description ── */}
         {entity.description && (
-          <p className="text-[#71717a] text-sm mt-3">{entity.description}</p>
+          <p className="text-xs mt-3 leading-relaxed" style={{ color: isDark ? '#8b8e99' : '#71717a' }}>{entity.description}</p>
         )}
       </div>
 
       {/* ── Relationships ── */}
       {relationships.length > 0 && (
-        <div className="border-t border-[#e8e8e4] px-5 py-3">
-          <div className="text-xs text-[#a1a19b] mb-2">Relationships</div>
-          <div className="flex flex-wrap gap-1">
+        <div
+          className="px-5 py-3"
+          style={{ borderTop: `1px solid ${isDark ? '#242732' : '#e8e8e4'}` }}
+        >
+          <div className="text-[11px] font-mono mb-2" style={{ color: isDark ? '#8b8e99' : '#a1a19b' }}>Relationships</div>
+          <div className="flex flex-wrap gap-1.5">
             {relationships.map((rel, i) => (
-              <span key={i} className="text-xs bg-[#f4f4f4] text-[#3a3a3a] px-2 py-1 rounded-lg border border-[#e8e8e4]">
+              <span
+                key={i}
+                className="text-[11px] px-2 py-0.5 rounded-md border"
+                style={{
+                  backgroundColor: isDark ? '#1e212b' : '#f4f4f4',
+                  borderColor: isDark ? '#2e3342' : '#e8e8e4',
+                  color: isDark ? '#c4c6ce' : '#3a3a3a'
+                }}
+              >
                 {rel.relationship} → {typeof rel.target === 'string' ? rel.target : rel.target?.id}
                 {rel.weight ? (
-                  <span className="ml-1 text-[#a1a19b] font-mono">
+                  <span className="ml-1 font-mono text-[#8b8e99]">
                     w{rel.weight}
-                    {rel.evidenceCount ? `/${rel.evidenceCount}` : ''}
                   </span>
                 ) : null}
               </span>
@@ -157,56 +215,66 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
       )}
 
       {/* ── View Timeline button ── */}
-      <div className="border-t border-[#e8e8e4] px-5 py-3">
+      <div
+        className="px-5 py-3"
+        style={{ borderTop: `1px solid ${isDark ? '#242732' : '#e8e8e4'}` }}
+      >
         <button
           onClick={handleTimelineClick}
-          className="w-full text-xs flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-[#e8e8e4] bg-white hover:bg-[#f4f4f4] text-[#1f1f1f] transition-colors"
+          className="w-full text-xs font-medium flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border transition-colors cursor-pointer"
+          style={{
+            backgroundColor: isDark ? '#1e212b' : '#ffffff',
+            borderColor: isDark ? '#2e3342' : '#e8e8e4',
+            color: isDark ? '#f4f4f5' : '#1f1f1f'
+          }}
         >
-          <Clock size={12} />
-          {showTimeline ? 'Hide Timeline' : 'View Timeline'}
+          <Clock size={13} />
+          <span>{showTimeline ? 'Hide Timeline' : 'View Timeline'}</span>
         </button>
       </div>
 
       {/* ── Inline timeline panel ── */}
       {showTimeline && (
-        <div className="border-t border-[#e8e8e4] px-4 py-3 max-h-72 overflow-y-auto space-y-2 bg-[#f6f7ed]/50">
+        <div
+          className="px-4 py-3 max-h-72 overflow-y-auto space-y-2"
+          style={{
+            borderTop: `1px solid ${isDark ? '#242732' : '#e8e8e4'}`,
+            backgroundColor: isDark ? '#121318' : '#f6f7ed'
+          }}
+        >
           {tl.loading && (
-            <div className="flex items-center justify-center py-4 gap-2 text-[#a1a19b] text-xs">
-              <RefreshCw size={12} className="animate-spin" /> Loading timeline...
+            <div className="flex items-center justify-center py-4 gap-2 text-[#8b8e99] text-xs">
+              <RefreshCw size={13} className="animate-spin" /> Loading timeline...
             </div>
           )}
           {tl.error && (
-            <div className="text-xs text-amber-600 text-center py-3">{tl.error}</div>
+            <div className="text-xs text-amber-500 text-center py-3">{tl.error}</div>
           )}
           {!tl.loading && !tl.error && tl.events.length === 0 && (
-            <div className="text-xs text-[#a1a19b] text-center py-3">No timeline events for this entity.</div>
+            <div className="text-xs text-[#8b8e99] text-center py-3">No timeline events for this entity.</div>
           )}
           {!tl.loading && tl.events.length > 0 && (
             <>
-              <div className="text-[10px] text-[#a1a19b] font-mono">{tl.events.length} event{tl.events.length !== 1 ? 's' : ''}</div>
+              <div className="text-[10px] text-[#8b8e99] font-mono">{tl.events.length} event{tl.events.length !== 1 ? 's' : ''}</div>
               {tl.events.map((item, i) => (
-                <div key={i} className="bg-white border border-[#e8e8e4] rounded-xl p-2.5 text-xs">
+                <div
+                  key={i}
+                  className="rounded-xl p-2.5 text-xs border"
+                  style={{
+                    backgroundColor: isDark ? '#171920' : '#ffffff',
+                    borderColor: isDark ? '#292c36' : '#e8e8e4'
+                  }}
+                >
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase
-                      ${item.type === 'critical' ? 'bg-red-500/10 text-red-400' :
-                        item.type === 'warning' ? 'bg-yellow-500/10 text-yellow-400' :
-                        item.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' :
-                        'bg-blue-500/10 text-blue-400'}
+                      ${item.type === 'critical' ? 'bg-red-500/15 text-red-400 border border-red-500/30' :
+                        item.type === 'warning' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' :
+                          item.type === 'success' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                            'bg-blue-500/15 text-blue-400 border border-blue-500/30'}
                     `}>{item.type}</span>
-                    <span className="text-[10px] font-mono text-[#a1a19b]">{item.timestamp}</span>
+                    <span className="text-[10px] font-mono text-[#8b8e99]">{item.timestamp}</span>
                   </div>
-                  <p className="text-[#1f1f1f] leading-relaxed mb-1">{item.event}</p>
-                  {item.actors && item.actors.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {item.actors.map((a, j) => (
-                        <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          a.toLowerCase() === entity.name?.toLowerCase()
-                            ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
-                            : 'bg-purple-500/10 text-purple-400'
-                        }`}>{a}</span>
-                      ))}
-                    </div>
-                  )}
+                  <p className="leading-relaxed mb-1" style={{ color: isDark ? '#e4e4e7' : '#1f1f1f' }}>{item.event}</p>
                 </div>
               ))}
             </>
@@ -218,25 +286,49 @@ const EntityCard = ({ entity, relationships, getNodeColor, onViewTimeline, timel
 };
 
 
+/* ── Main PeopleTab Component ── */
 const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
-  const [graphData,        setGraphData]        = useState({ nodes: [], links: [] });
-  const [loading,          setLoading]          = useState(false);
-  const [extracting,       setExtracting]       = useState(false);
-  const [error,            setError]            = useState(null);
-  const [viewMode,         setViewMode]         = useState('graph'); // 'graph' or 'list'
-  const [personAnomalyMap, setPersonAnomalyMap] = useState({});      // personName.lower -> {score, severity}
+  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  const [loading, setLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('graph');
+  const [personAnomalyMap, setPersonAnomalyMap] = useState({});
   const graphRef = useRef();
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const resizeObserverRef = useRef(null);
 
-  // Entity timeline side-panel state (graph view)
-  const [selectedNode, setSelectedNode]           = useState(null);   // node object
-  const [entityTimeline, setEntityTimeline]       = useState([]);     // filtered events
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [entityTimeline, setEntityTimeline] = useState([]);
   const [entityTimelineLoading, setEntityTimelineLoading] = useState(false);
-  const [entityTimelineError, setEntityTimelineError]     = useState(null);
-
-  // Entity timeline state for list view – keyed by entity name
+  const [entityTimelineError, setEntityTimelineError] = useState(null);
   const [listTimelines, setListTimelines] = useState({});
+
+  const isDark = localStorage.getItem('nexus_theme') === 'dark';
+
+  const theme = isDark ? {
+    bgCard: '#171920',
+    bgGraph: '#121316',          // Clean mild charcoal (never stark white)
+    border: '#292c36',
+    pillBg: '#1f222a',
+    pillText: '#f4f4f5',
+    pillBorder: '#2f3340',
+    textHeading: '#ffffff',
+    textMuted: '#8b8e99',
+    linkColorActive: 'rgba(255, 255, 255, 0.40)',
+    linkColorMuted: 'rgba(255, 255, 255, 0.12)'
+  } : {
+    bgCard: '#ffffff',
+    bgGraph: '#fafaf8',
+    border: '#e8e8e4',
+    pillBg: '#f2f2ef',
+    pillText: '#111111',
+    pillBorder: '#e4e4df',
+    textHeading: '#111111',
+    textMuted: '#717175',
+    linkColorActive: 'rgba(31, 31, 31, 0.42)',
+    linkColorMuted: 'rgba(0, 0, 0, 0.10)'
+  };
 
   useEffect(() => {
     if (highlightTarget && highlightTarget.type === 'entity' && graphData.nodes.length > 0) {
@@ -248,14 +340,13 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
         const el = document.getElementById(elementId);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('ring-4', 'ring-yellow-400', 'ring-opacity-50');
-          setTimeout(() => el.classList.remove('ring-4', 'ring-yellow-400', 'ring-opacity-50'), 3000);
+          el.classList.add('ring-4', 'ring-amber-400/50');
+          setTimeout(() => el.classList.remove('ring-4', 'ring-amber-400/50'), 3000);
         }
       }, 100);
     }
   }, [highlightTarget, graphData, viewMode]);
 
-  // Called when user clicks a node in the graph
   const handleNodeClick = useCallback(async (node) => {
     if (!sessionId || !node) return;
     setSelectedNode(node);
@@ -280,17 +371,14 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
         setEntityTimeline([]);
       }
     } catch (err) {
-      console.error('Entity timeline error:', err);
       setEntityTimelineError('Timeline not yet extracted. Generate a timeline first from the Timeline tab.');
     } finally {
       setEntityTimelineLoading(false);
     }
   }, [sessionId]);
 
-  // Called when user clicks "View Timeline" on an EntityCard in list view
   const handleListViewTimeline = useCallback(async (entityName) => {
     if (!sessionId || !entityName) return;
-    // Mark loading for this specific entity
     setListTimelines(prev => ({
       ...prev,
       [entityName]: { loading: true, error: null, events: [] }
@@ -309,7 +397,6 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
         [entityName]: { loading: false, error: null, events }
       }));
     } catch (err) {
-      console.error('List-view entity timeline error:', err);
       setListTimelines(prev => ({
         ...prev,
         [entityName]: { loading: false, error: 'Timeline not yet extracted. Generate a timeline first.', events: [] }
@@ -336,24 +423,22 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
 
   const fetchGraphData = useCallback(async () => {
     if (!sessionId) return;
-    
     setLoading(true);
     setError(null);
-    
+
     try {
       const graphRes = await getSessionGraph(sessionId);
-      
+
       if (graphRes.nodes && graphRes.edges) {
-        // Transform to react-force-graph format
         const nodes = graphRes.nodes.map(n => ({
           id: n.id,
           name: n.name,
           type: n.type,
           description: n.description,
           anomaly: n.anomaly || null,
-          val: n.type === 'person' ? 10 : 6 // Size nodes by type
+          val: n.type === 'person' ? 10 : 6
         }));
-        
+
         const links = graphRes.edges.map(e => ({
           source: e.source,
           target: e.target,
@@ -364,11 +449,10 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
           evidenceCount: e.evidence_count || 1,
           properties: e.properties || {},
         }));
-        
+
         setGraphData({ nodes, links });
       }
     } catch (err) {
-      console.error('Error fetching graph data:', err);
       setError('Failed to load graph data');
     } finally {
       setLoading(false);
@@ -379,7 +463,6 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
     fetchGraphData();
   }, [fetchGraphData]);
 
-  // Fetch cached anomaly data to colour nodes and decorate cards
   useEffect(() => {
     if (!sessionId) return;
     setPersonAnomalyMap({});
@@ -395,7 +478,7 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
           setPersonAnomalyMap(map);
         }
       } catch {
-        // silently skip — anomaly tab will show hint to run detection
+        // silently continue
       }
     };
 
@@ -404,63 +487,63 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
 
   const handleExtractEntities = async () => {
     if (!sessionId) return;
-    
     setExtracting(true);
     setError(null);
-    
+
     try {
       const result = await extractEntities(sessionId);
-      
       if (result.success) {
-        // Refresh the data after extraction
         await fetchGraphData();
       } else {
         setError(result.message || 'Extraction failed');
       }
     } catch (err) {
-      console.error('Extraction error:', err);
       setError('Failed to extract entities from evidence');
     } finally {
       setExtracting(false);
     }
   };
 
-  // Node color based on type
   const getNodeColor = (node) => {
     const anomalyInfo = node.anomaly || personAnomalyMap[node.name?.toLowerCase()];
     if (anomalyInfo?.severity === 'critical' || anomalyInfo?.severity === 'high') return '#ef4444';
     if (anomalyInfo?.severity === 'moderate') return '#f59e0b';
 
     const typeColors = {
-      person: '#3b82f6',       // blue
-      organization: '#8b5cf6', // purple
-      location: '#10b981',     // green
-      event: '#f59e0b',        // amber
-      vehicle: '#06b6d4',      // cyan
-      weapon: '#ef4444',       // red
-      document: '#6b7280',     // gray
-      evidence: '#6b7280',     // gray
-      phone: '#ec4899',        // pink
-      email: '#84cc16',        // lime
-      account: '#f97316',      // orange
-      device: '#14b8a6',       // teal
-      date: '#a855f7',         // purple
-      money: '#eab308',        // yellow
-      unknown: '#71717a'       // zinc
+      person: '#3b82f6',
+      organization: '#8b5cf6',
+      location: '#10b981',
+      event: '#f59e0b',
+      vehicle: '#06b6d4',
+      weapon: '#ef4444',
+      document: '#6b7280',
+      evidence: '#6b7280',
+      phone: '#ec4899',
+      email: '#84cc16',
+      account: '#f97316',
+      device: '#14b8a6',
+      date: '#a855f7',
+      money: '#eab308',
+      unknown: '#71717a'
     };
-    
+
     return typeColors[node.type?.toLowerCase()] || typeColors.unknown;
   };
 
-  // Empty state - no session
   if (!sessionId) {
     return (
-      <div className="bg-white border border-[#e8e8e4] rounded-2xl p-12 flex flex-col items-center justify-center text-center min-h-[500px] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <div className="p-4 rounded-2xl bg-[#f4f4f4] mb-4">
-          <Users size={44} className="text-[#d4d4cf]" />
+      <div
+        className="rounded-2xl p-12 flex flex-col items-center justify-center text-center min-h-[500px]"
+        style={{
+          backgroundColor: theme.bgCard,
+          border: `1px solid ${theme.border}`
+        }}
+      >
+        <div className="p-4 rounded-2xl mb-4" style={{ backgroundColor: isDark ? '#1f222a' : '#f4f4f4' }}>
+          <Users size={44} className="text-[#8b8e99]" />
         </div>
-        <h3 className="text-[#71717a] font-medium text-lg mb-2">No Session Active</h3>
-        <p className="text-[#a1a19b] text-sm max-w-md">
+        <h3 className="font-semibold text-base mb-1" style={{ color: theme.textHeading }}>No Session Active</h3>
+        <p className="text-xs max-w-md" style={{ color: theme.textMuted }}>
           Open a case to view and extract entities from evidence.
         </p>
       </div>
@@ -470,50 +553,81 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
   return (
     <div className="space-y-4">
       {/* Header Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="text-[13px] font-semibold text-[#71717a] uppercase tracking-wider">Knowledge Graph</h3>
-          <span className="text-xs bg-[#f4f4f4] px-2.5 py-0.5 rounded-full text-[#71717a] border border-[#e8e8e4]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h2 className="text-lg font-black tracking-tight uppercase" style={{ color: theme.textHeading }}>
+            Knowledge Graph
+          </h2>
+          <span
+            className="text-xs px-3 py-1 rounded-full font-medium"
+            style={{
+              backgroundColor: theme.pillBg,
+              color: theme.pillText,
+              border: `1px solid ${theme.pillBorder}`
+            }}
+          >
             {graphData.nodes.length} entities, {graphData.links.length} relationships
           </span>
         </div>
-        
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
           {/* Extract Entities Button */}
-          <button 
+          <button
             onClick={handleExtractEntities}
             disabled={extracting}
-            className="text-xs bg-white hover:bg-[#f4f4f4] text-[#1f1f1f] px-3.5 py-2 rounded-xl border border-[#e8e8e4] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+            className="text-xs font-semibold px-3.5 py-1.5 rounded-full border flex items-center gap-1.5 transition-all cursor-pointer hover:opacity-85 disabled:opacity-50"
+            style={{
+              backgroundColor: theme.pillBg,
+              color: theme.pillText,
+              border: `1px solid ${theme.pillBorder}`
+            }}
           >
-            {extracting ? (
-              <RefreshCw size={12} className="animate-spin" />
-            ) : (
-              <Scan size={12} />
-            )}
-            {extracting ? 'Extracting...' : 'Extract from Evidence'}
+            {extracting ? <RefreshCw size={13} className="animate-spin" /> : <Scan size={13} />}
+            <span>{extracting ? 'Extracting...' : 'Extract from Evidence'}</span>
           </button>
-          
+
           {/* Refresh Button */}
-          <button 
+          <button
             onClick={fetchGraphData}
             disabled={loading}
-            className="text-xs bg-white hover:bg-[#f4f4f4] text-[#1f1f1f] px-3.5 py-2 rounded-xl border border-[#e8e8e4] flex items-center gap-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+            className="text-xs font-semibold px-3.5 py-1.5 rounded-full border flex items-center gap-1.5 transition-all cursor-pointer hover:opacity-85 disabled:opacity-50"
+            style={{
+              backgroundColor: theme.pillBg,
+              color: theme.pillText,
+              border: `1px solid ${theme.pillBorder}`
+            }}
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-            Refresh
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
           </button>
-          
+
           {/* View Toggle */}
-          <div className="flex bg-[#f4f4f4] rounded-xl border border-[#e8e8e4]">
-            <button 
+          <div
+            className="p-0.5 rounded-full flex items-center border"
+            style={{
+              backgroundColor: theme.pillBg,
+              borderColor: theme.pillBorder
+            }}
+          >
+            <button
               onClick={() => setViewMode('graph')}
-              className={`px-3.5 py-2 text-xs flex items-center gap-1 rounded-xl transition-all border-0 ${viewMode === 'graph' ? 'bg-[#1f1f1f] text-white shadow-sm' : 'text-[#71717a] bg-transparent'}`}
+              className={`px-3 py-1 text-xs font-semibold flex items-center gap-1.5 rounded-full transition-all cursor-pointer ${viewMode === 'graph' ? 'shadow-sm' : 'opacity-65 hover:opacity-100'
+                }`}
+              style={{
+                backgroundColor: viewMode === 'graph' ? (isDark ? '#2e3240' : '#ffffff') : 'transparent',
+                color: theme.textHeading
+              }}
             >
               <Network size={12} /> Graph
             </button>
-            <button 
+            <button
               onClick={() => setViewMode('list')}
-              className={`px-3.5 py-2 text-xs flex items-center gap-1 rounded-xl transition-all border-0 ${viewMode === 'list' ? 'bg-[#1f1f1f] text-white shadow-sm' : 'text-[#71717a] bg-transparent'}`}
+              className={`px-3 py-1 text-xs font-semibold flex items-center gap-1.5 rounded-full transition-all cursor-pointer ${viewMode === 'list' ? 'shadow-sm' : 'opacity-65 hover:opacity-100'
+                }`}
+              style={{
+                backgroundColor: viewMode === 'list' ? (isDark ? '#2e3240' : '#ffffff') : 'transparent',
+                color: theme.textHeading
+              }}
             >
               <List size={12} /> List
             </button>
@@ -523,222 +637,179 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
 
       {/* Error Display */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-600 text-sm">
-          <AlertCircle size={16} />
-          {error}
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2 text-red-400 text-xs">
+          <AlertCircle size={15} />
+          <span>{error}</span>
         </div>
       )}
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-white border border-[#e8e8e4] rounded-2xl p-12 flex items-center justify-center min-h-[500px] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <div className="flex flex-col items-center gap-4">
-            <RefreshCw size={28} className="text-[#1f1f1f] animate-spin" />
-            <span className="text-[#a1a19b]">Loading graph data...</span>
+        <div
+          className="rounded-2xl p-12 flex items-center justify-center min-h-[500px]"
+          style={{ backgroundColor: theme.bgGraph, border: `1px solid ${theme.border}` }}
+        >
+          <div className="flex flex-col items-center gap-3 text-xs text-[#8b8e99]">
+            <RefreshCw size={24} className="animate-spin text-white" />
+            <span>Loading graph data...</span>
           </div>
         </div>
       )}
 
       {/* Empty State */}
       {!loading && graphData.nodes.length === 0 && (
-        <div className="bg-white border border-[#e8e8e4] rounded-2xl p-12 flex flex-col items-center justify-center text-center min-h-[500px] shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <div className="p-4 rounded-2xl bg-[#f4f4f4] mb-4">
-            <Network size={44} className="text-[#d4d4cf]" />
+        <div
+          className="rounded-2xl p-12 flex flex-col items-center justify-center text-center min-h-[500px]"
+          style={{ backgroundColor: theme.bgGraph, border: `1px solid ${theme.border}` }}
+        >
+          <div className="p-4 rounded-2xl mb-4" style={{ backgroundColor: isDark ? '#1f222a' : '#f4f4f4' }}>
+            <Network size={44} className="text-[#8b8e99]" />
           </div>
-          <h3 className="text-[#71717a] font-medium text-lg mb-2">No Entities Extracted</h3>
-          <p className="text-[#a1a19b] text-sm max-w-md mb-6">
-            Click "Extract from Evidence" to use AI to automatically identify people, organizations, locations, and relationships from your documents.
+          <h3 className="font-semibold text-base mb-1" style={{ color: theme.textHeading }}>No Entities Extracted</h3>
+          <p className="text-xs max-w-md mb-6" style={{ color: theme.textMuted }}>
+            Click "Extract from Evidence" to automatically identify people, organizations, and relationships.
           </p>
-          <button 
+          <button
             onClick={handleExtractEntities}
             disabled={extracting}
-            className="bg-[#1f1f1f] hover:bg-[#3a3a3a] text-white px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 disabled:opacity-50 border-0"
+            className="text-xs font-semibold px-4 py-2.5 rounded-full flex items-center gap-2 transition-all cursor-pointer shadow-sm hover:opacity-85"
+            style={{ backgroundColor: isDark ? '#ffffff' : '#111111', color: isDark ? '#111111' : '#ffffff' }}
           >
-            {extracting ? <RefreshCw size={14} className="animate-spin" /> : <Scan size={14} />}
-            {extracting ? 'Extracting...' : 'Extract Entities from Evidence'}
+            {extracting ? <RefreshCw size={13} className="animate-spin" /> : <Scan size={13} />}
+            <span>Extract Entities</span>
           </button>
         </div>
       )}
 
       {/* Graph View */}
       {!loading && graphData.nodes.length > 0 && viewMode === 'graph' && (
-        <div className="flex gap-0 relative">
-          {/* Graph container — shrinks when panel is open */}
+        <div className="flex gap-3 relative">
           <div
             ref={containerRef}
-            className="bg-white border border-[#e8e8e4] rounded-2xl overflow-hidden relative transition-all duration-300 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-            style={{ height: '600px', width: selectedNode ? '55%' : '100%' }}
+            className="rounded-2xl overflow-hidden relative transition-all duration-300 shadow-sm"
+            style={{
+              height: '600px',
+              width: selectedNode ? '55%' : '100%',
+              backgroundColor: theme.bgGraph,
+              border: `1px solid ${theme.border}`
+            }}
           >
-          <ForceGraph2D
-            ref={graphRef}
-            width={containerSize.width}
-            height={containerSize.height}
-            graphData={graphData}
-            nodeLabel={() => ''} // Disable default tooltip to use custom drawn labels
-            nodeRelSize={6}
-            onNodeClick={handleNodeClick}
-            linkLabel={link => {
-              const files = link.sourceFiles?.length ? `\nSources: ${link.sourceFiles.slice(0, 3).join(', ')}` : '';
-              const more = link.sourceFiles?.length > 3 ? ` +${link.sourceFiles.length - 3} more` : '';
-              const confidence = Math.round((link.confidence || 0) * 100);
-              return `${link.relationship}\nStrength: ${link.weight || 1}/10\nEvidence: ${link.evidenceCount || 1}\nConfidence: ${confidence}%${files}${more}`;
-            }}
-            linkColor={link => {
-              const weight = link.weight || 1;
-              if (weight >= 7) return 'rgba(31, 31, 31, 0.42)';
-              if (weight >= 4) return 'rgba(31, 31, 31, 0.24)';
-              return 'rgba(0, 0, 0, 0.10)';
-            }}
-            linkWidth={link => Math.max(1, Math.min(6, 0.75 + (link.weight || 1) * 0.45))}
-            linkDirectionalParticles={link => Math.min(5, Math.max(1, Math.ceil((link.weight || 1) / 3)))}
-            linkDirectionalParticleWidth={link => Math.max(1.5, Math.min(4, 1.2 + (link.weight || 1) * 0.25))}
-            linkDirectionalParticleColor={link => (link.weight || 1) >= 5 ? 'rgba(31, 31, 31, 0.55)' : 'rgba(0, 0, 0, 0.28)'}
-            linkDirectionalParticleSpeed={link => 0.003 + Math.min(0.008, (link.weight || 1) * 0.0008)}
-            backgroundColor="#ffffff"
-            nodeCanvasObject={(node, ctx, globalScale) => {
-              const label = node.name;
-              // Ensure font doesn't get infinitely small or large
-              const fontSize = Math.max(12 / globalScale, 2);
-              const nodeRadius = node.val || 5;
-              const isSelected = selectedNode && node.id === selectedNode.id;
-              
-              // Base color for the node
-              const color = getNodeColor(node);
+            <ForceGraph2D
+              ref={graphRef}
+              width={containerSize.width}
+              height={containerSize.height}
+              graphData={graphData}
+              nodeLabel={() => ''}
+              nodeRelSize={6}
+              onNodeClick={handleNodeClick}
+              linkColor={link => {
+                const weight = link.weight || 1;
+                return weight >= 4 ? theme.linkColorActive : theme.linkColorMuted;
+              }}
+              linkWidth={link => Math.max(1, Math.min(5, 0.75 + (link.weight || 1) * 0.4))}
+              linkDirectionalParticles={2}
+              linkDirectionalParticleSpeed={0.004}
+              backgroundColor={theme.bgGraph}
+              nodeCanvasObject={(node, ctx, globalScale) => {
+                const label = node.name;
+                const fontSize = Math.max(11 / globalScale, 2);
+                const nodeRadius = node.val || 5;
+                const isSelected = selectedNode && node.id === selectedNode.id;
+                const color = getNodeColor(node);
 
-              // 1. Draw soft outer glow
-              ctx.beginPath();
-              ctx.arc(node.x, node.y, nodeRadius + (isSelected ? 10 : 5), 0, 2 * Math.PI, false);
-              ctx.fillStyle = isSelected ? 'rgba(0, 0, 0, 0.08)' : `${color}25`; // ~15% opacity hex
-              ctx.fill();
-
-              // 2. Draw intense inner ring if selected or anomalous
-              const sev = node.anomaly?.severity;
-              if (isSelected || (sev && sev !== 'normal' && sev !== 'low')) {
-                const ringColor = isSelected ? 'rgba(31, 31, 31, 0.6)' : 
-                                 (sev === 'critical' || sev === 'high') ? 'rgba(239, 68, 68, 0.8)' : 
-                                 'rgba(245, 158, 11, 0.8)';
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, nodeRadius + 2, 0, 2 * Math.PI, false);
-                ctx.strokeStyle = ringColor;
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-              }
-
-              // 3. Draw solid core
-              ctx.beginPath();
-              ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI, false);
-              ctx.fillStyle = color;
-              ctx.fill();
-
-              // 4. Draw Label (Only if zoomed in enough or if selected, to reduce clutter)
-              if (globalScale > 1.2 || isSelected) {
-                ctx.font = `600 ${fontSize}px Manrope, sans-serif`;
-                const textWidth = ctx.measureText(label).width;
-                const padX = fontSize * 0.8;
-                const padY = fontSize * 0.5;
-                
-                const bckgW = textWidth + padX * 2;
-                const bckgH = fontSize + padY * 2;
-
-                const labelYOffset = nodeRadius + 6;
-
-                // Draw pill background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; // Light frosted feel
-                ctx.beginPath();
-                if (ctx.roundRect) {
-                  ctx.roundRect(node.x - bckgW / 2, node.y + labelYOffset, bckgW, bckgH, bckgH / 2);
-                } else {
-                  ctx.rect(node.x - bckgW / 2, node.y + labelYOffset, bckgW, bckgH); // Fallback
-                }
+                ctx.arc(node.x, node.y, nodeRadius + (isSelected ? 8 : 4), 0, 2 * Math.PI, false);
+                ctx.fillStyle = isSelected ? (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)') : `${color}25`;
                 ctx.fill();
-                
-                // Draw pill border
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
-                ctx.lineWidth = 1 / globalScale;
-                ctx.stroke();
 
-                // Draw text
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = isSelected ? '#000000' : 'rgba(31, 31, 31, 0.85)';
-                ctx.fillText(label, node.x, node.y + labelYOffset + bckgH / 2);
-              }
-            }}
-            nodePointerAreaPaint={(node, color, ctx) => {
-              const nodeRadius = node.val || 5;
-              ctx.fillStyle = color;
-              ctx.beginPath();
-              ctx.arc(node.x, node.y, nodeRadius + 10, 0, 2 * Math.PI, false);
-              ctx.fill();
-            }}
-            onEngineStop={() => {
-              // Automatically zoom to fit the graph nicely when layout stabilizes
-              if (graphRef.current) {
-                graphRef.current.zoomToFit(400, 40);
-              }
-            }}
-          />
-          
-          {/* Legend */}
-          <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md border border-[#e8e8e4] rounded-xl p-3.5 shadow-sm">
-            <div className="text-[11px] uppercase tracking-wider text-[#a1a19b] mb-3 font-bold">Entity Types</div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                <span className="text-[#71717a] font-medium">Person</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-                <span className="text-[#71717a] font-medium">Organization</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                <span className="text-[#71717a] font-medium">Location</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                <span className="text-[#71717a] font-medium">Event</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
-                <span className="text-[#71717a] font-medium">Phone</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
-                <span className="text-[#71717a] font-medium">Vehicle</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                <span className="text-[#71717a] font-medium">Weapon</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-gray-500"></span>
-                <span className="text-[#71717a] font-medium">Document</span>
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI, false);
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                if (globalScale > 1.1 || isSelected) {
+                  ctx.font = `600 ${fontSize}px sans-serif`;
+                  const textWidth = ctx.measureText(label).width;
+                  const padX = fontSize * 0.6;
+                  const padY = fontSize * 0.4;
+                  const bckgW = textWidth + padX * 2;
+                  const bckgH = fontSize + padY * 2;
+                  const labelYOffset = nodeRadius + 5;
+
+                  ctx.fillStyle = isDark ? 'rgba(21, 23, 28, 0.92)' : 'rgba(255, 255, 255, 0.92)';
+                  ctx.beginPath();
+                  if (ctx.roundRect) {
+                    ctx.roundRect(node.x - bckgW / 2, node.y + labelYOffset, bckgW, bckgH, bckgH / 2);
+                  } else {
+                    ctx.rect(node.x - bckgW / 2, node.y + labelYOffset, bckgW, bckgH);
+                  }
+                  ctx.fill();
+
+                  ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)';
+                  ctx.lineWidth = 1 / globalScale;
+                  ctx.stroke();
+
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+                  ctx.fillStyle = isDark ? '#ffffff' : '#111111';
+                  ctx.fillText(label, node.x, node.y + labelYOffset + bckgH / 2);
+                }
+              }}
+              onEngineStop={() => {
+                if (graphRef.current) {
+                  graphRef.current.zoomToFit(400, 40);
+                }
+              }}
+            />
+
+            {/* Legend */}
+            <div
+              className="absolute bottom-4 left-4 rounded-xl p-3.5 backdrop-blur-md shadow-sm border"
+              style={{
+                backgroundColor: isDark ? 'rgba(21, 23, 28, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+                borderColor: theme.border
+              }}
+            >
+              <div className="text-[10px] uppercase tracking-wider text-[#8b8e99] mb-2 font-bold">Entity Types</div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span style={{ color: theme.textHeading }}>Person</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                  <span style={{ color: theme.textHeading }}>Organization</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  <span style={{ color: theme.textHeading }}>Location</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span style={{ color: theme.textHeading }}>Event</span>
+                </div>
               </div>
             </div>
           </div>
-          </div>
 
-          {/* ── Entity Timeline Side Panel ── */}
+          {/* Entity Timeline Side Panel */}
           {selectedNode && (
-            <div className="w-[45%] bg-white border border-[#e8e8e4] rounded-2xl ml-2 overflow-hidden flex flex-col shadow-[0_1px_3px_rgba(0,0,0,0.04)]" style={{ height: '600px' }}>
-              {/* Panel header */}
-              <div 
-                className={`flex items-center justify-between px-4 py-3 border-b border-[#e8e8e4] shrink-0 bg-[#fafafa] ${isNotesOpen ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                draggable={isNotesOpen}
-                onDragStart={(e) => {
-                  if (!isNotesOpen) return;
-                  e.dataTransfer.setData('application/json', JSON.stringify({
-                    type: 'entity',
-                    name: selectedNode.name,
-                    entityType: selectedNode.type,
-                    anomalyScore: selectedNode.anomaly?.score || 0
-                  }));
+            <div
+              className="w-[45%] rounded-2xl overflow-hidden flex flex-col shadow-sm border"
+              style={{
+                height: '600px',
+                backgroundColor: theme.bgCard,
+                borderColor: theme.border
+              }}
+            >
+              <div
+                className="flex items-center justify-between px-4 py-3 border-b shrink-0"
+                style={{
+                  backgroundColor: isDark ? '#14161c' : '#fafafa',
+                  borderColor: theme.border
                 }}
-                title={isNotesOpen ? "Drag this panel header to Notes" : ""}
               >
-                <div className="flex items-center gap-2">
-                  {isNotesOpen && <GripVertical size={14} className="text-[#d4d4cf] mr-1" />}
+                <div className="flex items-center gap-2.5">
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                     style={{ backgroundColor: getNodeColor(selectedNode) + '30', color: getNodeColor(selectedNode) }}
@@ -746,78 +817,63 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
                     {selectedNode.name?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <div>
-                    <h4 className="text-[#1f1f1f] text-sm font-medium leading-tight">{selectedNode.name}</h4>
-                    <span className="text-[10px] text-[#a1a19b] capitalize">{selectedNode.type} timeline</span>
+                    <h4 className="text-sm font-semibold leading-tight" style={{ color: theme.textHeading }}>
+                      {selectedNode.name}
+                    </h4>
+                    <span className="text-[10px] text-[#8b8e99] capitalize font-mono">
+                      {selectedNode.type} timeline
+                    </span>
                   </div>
                 </div>
-                <button onClick={() => setSelectedNode(null)} className="p-1 hover:bg-[#f4f4f4] rounded-lg text-[#a1a19b] hover:text-[#1f1f1f] border-0 bg-transparent">
+                <button
+                  onClick={() => setSelectedNode(null)}
+                  className="p-1 rounded-lg hover:opacity-75 text-[#8b8e99] border-0 bg-transparent cursor-pointer"
+                >
                   <X size={16} />
                 </button>
               </div>
 
-              {/* Panel body */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
                 {entityTimelineLoading && (
-                  <div className="flex flex-col items-center justify-center h-full gap-3">
-                    <RefreshCw size={24} className="text-[#1f1f1f] animate-spin" />
-                    <span className="text-[#a1a19b] text-xs">Loading timeline...</span>
+                  <div className="flex flex-col items-center justify-center h-full gap-2 text-[#8b8e99] text-xs">
+                    <RefreshCw size={20} className="animate-spin text-white" />
+                    <span>Loading timeline...</span>
                   </div>
                 )}
-
                 {entityTimelineError && (
-                  <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
-                    <AlertCircle size={24} className="text-yellow-500" />
-                    <span className="text-[#71717a] text-xs">{entityTimelineError}</span>
-                  </div>
+                  <div className="text-xs text-amber-500 text-center py-4">{entityTimelineError}</div>
                 )}
-
                 {!entityTimelineLoading && !entityTimelineError && entityTimeline.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
-                    <Clock size={24} className="text-[#d4d4cf]" />
-                    <span className="text-[#a1a19b] text-xs">No timeline events found for {selectedNode.name}.</span>
-                  </div>
+                  <div className="text-xs text-[#8b8e99] text-center py-4">No events found for {selectedNode.name}.</div>
                 )}
-
                 {!entityTimelineLoading && entityTimeline.length > 0 && (
                   <>
-                    <div className="text-[10px] text-[#a1a19b] font-mono mb-1">
+                    <div className="text-[10px] text-[#8b8e99] font-mono mb-1">
                       {entityTimeline.length} event{entityTimeline.length !== 1 ? 's' : ''}
                     </div>
                     {entityTimeline.map(item => (
-                      <div key={item.id} className="bg-[#f6f7ed]/50 border border-[#e8e8e4] rounded-xl p-3 hover:border-[#d4d4cf] transition-colors">
+                      <div
+                        key={item.id}
+                        className="rounded-xl p-3 border"
+                        style={{
+                          backgroundColor: isDark ? '#121318' : '#f6f7ed',
+                          borderColor: theme.border
+                        }}
+                      >
                         <div className="flex items-center justify-between mb-1.5">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase
-                            ${item.type === 'critical' ? 'bg-red-500/10 text-red-400' :
-                              item.type === 'warning' ? 'bg-yellow-500/10 text-yellow-400' :
-                              item.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' :
-                              'bg-blue-500/10 text-blue-400'}
+                            ${item.type === 'critical' ? 'bg-red-500/15 text-red-400 border border-red-500/30' :
+                              item.type === 'warning' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' :
+                                item.type === 'success' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                                  'bg-blue-500/15 text-blue-400 border border-blue-500/30'}
                           `}>{item.type}</span>
-                          <span className="text-[10px] font-mono text-[#a1a19b]">{item.timestamp}</span>
+                          <span className="text-[10px] font-mono text-[#8b8e99]">{item.timestamp}</span>
                         </div>
-                        <p className="text-[#1f1f1f] text-xs leading-relaxed mb-1.5">{item.event}</p>
-
-                        {item.actors.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-1.5">
-                            {item.actors.map((a, i) => (
-                              <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                a.toLowerCase() === selectedNode.name?.toLowerCase()
-                                  ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
-                                  : 'bg-purple-500/10 text-purple-400'
-                              }`}>{a}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        {item.artifacts.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-1.5">
-                            {item.artifacts.map((a, i) => (
-                              <span key={i} className="text-[10px] font-mono bg-[#f4f4f4] text-[#1f1f1f] px-1.5 py-0.5 rounded-lg border border-[#e8e8e4]">{a}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-1 text-[10px] text-[#a1a19b]">
-                          <FileText size={10} className="text-[#71717a]" />
+                        <p className="text-xs leading-relaxed mb-1.5" style={{ color: isDark ? '#ffffff' : '#1f1f1f' }}>
+                          {item.event}
+                        </p>
+                        <div className="flex items-center gap-1 text-[10px] text-[#8b8e99]">
+                          <FileText size={10} />
                           <span className="font-mono">{item.sourceFile}</span>
                         </div>
                       </div>
@@ -830,7 +886,7 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
         </div>
       )}
 
-      {/* List View - Shows all entities from graph with anomaly details */}
+      {/* List View */}
       {!loading && graphData.nodes.length > 0 && viewMode === 'list' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {graphData.nodes.map((entity, idx) => (
@@ -844,6 +900,7 @@ const PeopleTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
               onViewTimeline={handleListViewTimeline}
               timelineData={listTimelines[entity.name]}
               isNotesOpen={isNotesOpen}
+              isDark={isDark}
             />
           ))}
         </div>

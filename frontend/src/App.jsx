@@ -16,12 +16,39 @@ import Sidebar from './components/layout/Sidebar';
 const DEV_BYPASS_AUTH = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true';
 const DEV_SESSION = { user: { id: 'dev-local', email: 'dev@localhost' } };
 
+const lightCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M3 3l7.5 18 2.5-7.5L20.5 11z'/%3E%3C/svg%3E"), auto`;
+const darkCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M3 3l7.5 18 2.5-7.5L20.5 11z'/%3E%3C/svg%3E"), auto`;
+
 // Inner component for authenticated workspace
 const AuthenticatedWorkspace = () => {
   const [savedCases, setSavedCases] = useState([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Global theme management
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('nexus_theme');
+    return saved === 'dark';
+  });
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const saved = localStorage.getItem('nexus_theme');
+      const dark = saved === 'dark';
+      setIsDark(dark);
+      document.documentElement.classList.toggle('dark', dark);
+    };
+
+    window.addEventListener('storage', handleThemeChange);
+    window.addEventListener('nexus_theme_change', handleThemeChange);
+    document.documentElement.classList.toggle('dark', isDark);
+
+    return () => {
+      window.removeEventListener('storage', handleThemeChange);
+      window.removeEventListener('nexus_theme_change', handleThemeChange);
+    };
+  }, [isDark]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -133,23 +160,40 @@ const AuthenticatedWorkspace = () => {
   }
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-[#eef0f4] text-[#111827]">
+    <div 
+      className="flex h-[100dvh] overflow-hidden transition-colors duration-200"
+      style={{
+        backgroundColor: isDark ? '#0f1013' : '#f7f7f5',
+        color: isDark ? '#ffffff' : '#111827',
+        cursor: isDark ? darkCursor : lightCursor
+      }}
+    >
       <Sidebar 
         savedCases={savedCases}
         onDeleteCase={handleDeleteCase}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
         onLogout={handleLogout}
+        isDark={isDark}
       />
       <div 
-        className={`flex-1 transition-all duration-300 flex flex-col pt-4 pr-4 pb-4 ${
+        className={`flex-1 min-w-0 transition-all duration-300 flex flex-col pt-4 pr-4 pb-4 ${
           sidebarCollapsed ? 'ml-[100px]' : 'ml-[288px]'
         }`}
       >
-        <div className="flex-1 w-full bg-white rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-[#e2e4e8] overflow-hidden">
+        <div 
+          className="flex-1 w-full min-w-0 rounded-[24px] overflow-hidden transition-all duration-200"
+          style={{
+            backgroundColor: isDark ? '#15171c' : '#ffffff',
+            border: `1px solid ${isDark ? '#292c35' : '#e4e4df'}`,
+            boxShadow: isDark 
+              ? '0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05)' 
+              : '0 8px 30px rgb(0,0,0,0.06)'
+          }}
+        >
           <Routes>
-            <Route path="/" element={<UploadView onUpload={handleUpload} />} />
-            <Route path="/:caseId" element={<DashboardView savedCases={savedCases} />} />
+            <Route path="/" element={<UploadView onUpload={handleUpload} isDark={isDark} />} />
+            <Route path="/:caseId" element={<DashboardView savedCases={savedCases} isDark={isDark} />} />
           </Routes>
         </div>
       </div>
@@ -180,7 +224,7 @@ export default function App() {
   // Show a loading state until session is checked (undefined means checking, null means no session)
   if (session === undefined) {
     return (
-      <div className="h-screen bg-[#eef0f4] flex items-center justify-center">
+      <div className="h-screen bg-[#f7f7f5] flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-10 h-10 border-2 border-[#1f1f1f] border-t-transparent rounded-full animate-spin mb-4"></div>
         </div>
