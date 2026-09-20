@@ -218,7 +218,7 @@ Relationships:
     def __init__(self):
         """Initialize the profiling engine with LLM"""
         self.llm = ChatGroq(
-        model_name="qwen/qwen3.8-27b",
+            model_name="openai/gpt-oss-120b",
             temperature=0,
             api_key=settings.GROQ_API_KEY,
             max_retries=3
@@ -474,24 +474,54 @@ Relationships:
             response = self.llm.invoke(prompt)
             raw = response.content.strip()
 
-            # Strip markdown fences if the LLM wrapped them anyway
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[1]
-            if raw.endswith("```"):
-                raw = raw.rsplit("```", 1)[0]
-            raw = raw.strip()
+            # Extract content inside ```json ... ``` code fences if present
+            fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw, re.IGNORECASE)
+            if fence_match:
+                raw_json = fence_match.group(1).strip()
+            else:
+                raw_json = raw.strip()
 
-            scored: List[Dict] = json.loads(raw)
+            # Robust JSON decoding with fallback
+            scored: List[Dict] = []
+            try:
+                parsed = json.loads(raw_json)
+                if isinstance(parsed, list):
+                    scored = parsed
+                elif isinstance(parsed, dict):
+                    scored = parsed.get("entities", [parsed])
+            except json.JSONDecodeError as jde:
+                print(f"[UserProfiling] Direct JSON decode failed: {jde}. Attempting regex array extraction...")
+                array_match = re.search(r"\[\s*\{[\s\S]*\}\s*\]", raw)
+                if array_match:
+                    try:
+                        parsed = json.loads(array_match.group(0))
+                        if isinstance(parsed, list):
+                            scored = parsed
+                    except json.JSONDecodeError:
+                        print("[UserProfiling] Fallback regex array extraction failed. Returning default scored list.")
+                        scored = []
+                else:
+                    print("[UserProfiling] No valid JSON array found in output. Returning default scored list.")
+                    scored = []
 
             result: Dict[str, EntityAnomaly] = {}
             for item in scored:
+                if not isinstance(item, dict):
+                    continue
                 eid = item.get("entity_id", "")
-                result[eid] = EntityAnomaly(
-                    score=max(0, min(100, int(item.get("anomaly_score", 0)))),
-                    severity=item.get("severity", "normal"),
-                    triggered_flags=item.get("triggered_flags", []),
-                    summary=item.get("summary", ""),
-                )
+                if eid:
+                    result[eid] = EntityAnomaly(
+                        score=max(0, min(100, int(item.get("anomaly_score", 0)))),
+                        severity=item.get("severity", "normal"),
+                        triggered_flags=item.get("triggered_flags", []),
+                        summary=item.get("summary", ""),
+                    )
+
+            # Ensure all requested nodes have at least a default entry
+            for node in nodes:
+                nid = node.get("id")
+                if nid and nid not in result:
+                    result[nid] = EntityAnomaly()
 
             print(f"[UserProfiling] Anomaly scoring complete for {len(result)} entities")
             return result

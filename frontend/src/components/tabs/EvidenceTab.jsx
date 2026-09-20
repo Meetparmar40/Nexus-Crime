@@ -4,47 +4,68 @@ import { getSessionFiles, detectAnomalies, getAnomalies } from '../../utils/api'
 import RelevanceBar from '../ui/RelevanceBar';
 import { AnomalyBadge, AnomalyDetailPanel } from '../ui/AnomalyBadge';
 
-// ── File type helpers ─────────────────────────────────────────────────────────
-
 const getFileTypeInfo = (filename) => {
   const ext = filename?.split('.').pop()?.toLowerCase() || '';
   const typeMap = {
-    pdf:  { type: 'Document',     icon: FileText,      color: 'text-blue-500'   },
-    docx: { type: 'Document',     icon: FileText,      color: 'text-blue-500'   },
-    doc:  { type: 'Document',     icon: FileText,      color: 'text-blue-500'   },
-    pptx: { type: 'Presentation', icon: FileText,      color: 'text-orange-500' },
-    ppt:  { type: 'Presentation', icon: FileText,      color: 'text-orange-500' },
-    txt:  { type: 'Text',         icon: FileText,      color: 'text-[#71717a]'  },
-    log:  { type: 'Log',          icon: FileText,      color: 'text-emerald-500' },
-    csv:  { type: 'Data',         icon: FileText,      color: 'text-amber-500'  },
-    json: { type: 'Data',         icon: FileText,      color: 'text-amber-500'  },
-    mp4:  { type: 'Video',        icon: Camera,        color: 'text-purple-500' },
-    avi:  { type: 'Video',        icon: Camera,        color: 'text-purple-500' },
-    wav:  { type: 'Audio',        icon: MessageSquare, color: 'text-amber-500'  },
-    mp3:  { type: 'Audio',        icon: MessageSquare, color: 'text-amber-500'  },
-    png:  { type: 'Image',        icon: Camera,        color: 'text-pink-500'   },
-    jpg:  { type: 'Image',        icon: Camera,        color: 'text-pink-500'   },
-    jpeg: { type: 'Image',        icon: Camera,        color: 'text-pink-500'   },
+    pdf: { type: 'Document', icon: FileText, color: 'text-blue-400' },
+    docx: { type: 'Document', icon: FileText, color: 'text-blue-400' },
+    doc: { type: 'Document', icon: FileText, color: 'text-blue-400' },
+    pptx: { type: 'Presentation', icon: FileText, color: 'text-orange-400' },
+    ppt: { type: 'Presentation', icon: FileText, color: 'text-orange-400' },
+    txt: { type: 'Text', icon: FileText, color: 'text-[#8b8e99]' },
+    log: { type: 'Log', icon: FileText, color: 'text-emerald-400' },
+    csv: { type: 'Data', icon: FileText, color: 'text-amber-400' },
+    json: { type: 'Data', icon: FileText, color: 'text-amber-400' },
+    mp4: { type: 'Video', icon: Camera, color: 'text-purple-400' },
+    avi: { type: 'Video', icon: Camera, color: 'text-purple-400' },
+    wav: { type: 'Audio', icon: MessageSquare, color: 'text-amber-400' },
+    mp3: { type: 'Audio', icon: MessageSquare, color: 'text-amber-400' },
+    png: { type: 'Image', icon: Camera, color: 'text-pink-400' },
+    jpg: { type: 'Image', icon: Camera, color: 'text-pink-400' },
+    jpeg: { type: 'Image', icon: Camera, color: 'text-pink-400' },
   };
-  return typeMap[ext] || { type: 'File', icon: FileText, color: 'text-[#71717a]' };
+  return typeMap[ext] || { type: 'File', icon: FileText, color: 'text-[#8b8e99]' };
 };
 
-// ── EvidenceTab ───────────────────────────────────────────────────────────────
-
 const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
-  const [evidence,     setEvidence]     = useState([]);
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState(null);
-  const [anomalyData,  setAnomalyData]  = useState({});   // filename → DocumentAnomaly
-  const [detecting,    setDetecting]    = useState(false);
-  const [detectionRan, setDetectionRan] = useState(false); // did detection ever complete?
+  const [evidence, setEvidence] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [anomalyData, setAnomalyData] = useState({});
+  const [detecting, setDetecting] = useState(false);
+  const [detectionRan, setDetectionRan] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
 
-  // ── Fetch evidence file list ───────────────────────────────────────────────
+  const isDark = localStorage.getItem('nexus_theme') === 'dark';
+
+  const theme = isDark ? {
+    bgCard: '#15171c',          // Base card container
+    bgNested: '#0f1013',        // Mild dark canvas for expanded row
+    bgRowHover: '#1a1d24',
+    border: '#292c35',
+    borderRow: 'rgba(255, 255, 255, 0.08)', // Mild white line separating reports
+    textHeading: '#ffffff',
+    textBody: '#c4c6ce',
+    textMuted: '#8b8e99',
+    pillBg: '#1f222a',
+    pillBorder: '#2f3340',
+    pillText: '#f4f4f5',
+  } : {
+    bgCard: '#ffffff',
+    bgNested: '#fafaf8',
+    bgRowHover: '#f9f9f8',
+    border: '#e8e8e4',
+    borderRow: '#f0f0ed',
+    textHeading: '#111111',
+    textBody: '#444446',
+    textMuted: '#717175',
+    pillBg: '#f2f2ef',
+    pillBorder: '#e4e4df',
+    pillText: '#111111',
+  };
 
   useEffect(() => {
     if (!sessionId) return;
-
     const fetchFiles = async () => {
       setLoading(true);
       setError(null);
@@ -56,7 +77,7 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
             name: f,
             location: 'Uploaded Evidence',
             ...getFileTypeInfo(f),
-            relevance: Math.floor(Math.random() * 30) + 70, // placeholder
+            relevance: Math.floor(Math.random() * 30) + 70,
             size: 'N/A',
           }));
           setEvidence(formatted);
@@ -71,10 +92,8 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
         setLoading(false);
       }
     };
-
     fetchFiles();
   }, [sessionId]);
-
 
   useEffect(() => {
     if (highlightTarget && highlightTarget.type === 'evidence' && evidence.length > 0) {
@@ -83,14 +102,12 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
       if (el) {
         setTimeout(() => {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('bg-yellow-100');
-          setTimeout(() => el.classList.remove('bg-yellow-100'), 3000);
+          el.classList.add(isDark ? 'bg-amber-950/40' : 'bg-yellow-100');
+          setTimeout(() => el.classList.remove(isDark ? 'bg-amber-950/40' : 'bg-yellow-100'), 3000);
         }, 100);
       }
     }
-  }, [highlightTarget, evidence]);
-
-  // ── Load cached anomaly results on session change ─────────────────────────
+  }, [highlightTarget, evidence, isDark]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -108,29 +125,22 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
           setDetectionRan(true);
         }
       } catch {
-        // silently skip — user can trigger detection manually
+        // Silently continue
       }
     };
-
     fetchCachedAnomalies();
   }, [sessionId]);
-
-  // ── Run anomaly detection ─────────────────────────────────────────────────
 
   const handleDetectAnomalies = useCallback(async () => {
     if (!sessionId || detecting) return;
     setDetecting(true);
     setError(null);
     try {
-      console.log('[EvidenceTab] Sending detect-anomalies request for session:', sessionId);
       const result = await detectAnomalies(sessionId);
-      console.log('[EvidenceTab] Detect-anomalies response:', result);
-
       if (result.success === false) {
         setError(`Anomaly detection failed: ${result.message || 'Unknown error'}`);
         return;
       }
-
       const anomalies = result.document_anomalies || [];
       if (anomalies.length > 0) {
         const map = {};
@@ -140,14 +150,11 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
       }
       setDetectionRan(true);
     } catch (err) {
-      console.error('[EvidenceTab] Anomaly detection error:', err);
       setError(`Anomaly detection failed: ${err.message}`);
     } finally {
       setDetecting(false);
     }
   }, [sessionId, detecting]);
-
-  // ── Toggle expanded flag panel ────────────────────────────────────────────
 
   const toggleRow = useCallback((filename) => {
     setExpandedRows(prev => {
@@ -158,131 +165,160 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
     });
   }, []);
 
-  // ── Summary counts ────────────────────────────────────────────────────────
-
-  const highCount     = Object.values(anomalyData).filter(a => a.severity === 'high').length;
+  const highCount = Object.values(anomalyData).filter(a => a.severity === 'high').length;
   const moderateCount = Object.values(anomalyData).filter(a => a.severity === 'moderate').length;
-  const hasAnomalies  = Object.keys(anomalyData).length > 0;
-
-  // ── Empty / loading / error states ───────────────────────────────────────
+  const hasAnomalies = Object.keys(anomalyData).length > 0;
 
   if (!sessionId) {
     return (
-      <div className="bg-white border border-[#e8e8e4] rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <FolderOpen size={44} className="text-[#d4d4cf] mb-4" />
-        <h3 className="text-[#71717a] font-medium mb-2">No Session Active</h3>
-        <p className="text-[#a1a19b] text-sm">Open a case to view evidence files.</p>
+      <div
+        className="rounded-2xl p-12 flex flex-col items-center justify-center text-center"
+        style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}` }}
+      >
+        <FolderOpen size={44} className="mb-4 text-[#8b8e99]" />
+        <h3 className="font-semibold text-base mb-1" style={{ color: theme.textHeading }}>No Session Active</h3>
+        <p className="text-xs" style={{ color: theme.textMuted }}>Open a case to view evidence files.</p>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="bg-white border border-[#e8e8e4] rounded-2xl p-12 flex items-center justify-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <div className="animate-spin w-8 h-8 border-2 border-[#1f1f1f] border-t-transparent rounded-full" />
+      <div
+        className="rounded-2xl p-12 flex items-center justify-center"
+        style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}` }}
+      >
+        <div className="animate-spin w-8 h-8 border-2 border-t-transparent rounded-full" style={{ borderColor: theme.textHeading, borderTopColor: 'transparent' }} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white border border-[#e8e8e4] rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <AlertCircle size={44} className="text-red-400 mb-4" />
-        <h3 className="text-red-500 font-medium mb-2">Error</h3>
-        <p className="text-[#a1a19b] text-sm">{error}</p>
+      <div
+        className="rounded-2xl p-12 flex flex-col items-center justify-center text-center"
+        style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}` }}
+      >
+        <AlertCircle size={44} className="text-red-400 mb-3" />
+        <h3 className="text-red-400 font-medium mb-1">Error</h3>
+        <p className="text-xs text-[#8b8e99]">{error}</p>
       </div>
     );
   }
 
   if (evidence.length === 0) {
     return (
-      <div className="bg-white border border-[#e8e8e4] rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <FolderOpen size={44} className="text-[#d4d4cf] mb-4" />
-        <h3 className="text-[#71717a] font-medium mb-2">No Evidence Files</h3>
-        <p className="text-[#a1a19b] text-sm">Upload evidence files to begin your investigation.</p>
+      <div
+        className="rounded-2xl p-12 flex flex-col items-center justify-center text-center"
+        style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}` }}
+      >
+        <FolderOpen size={44} className="mb-4 text-[#8b8e99]" />
+        <h3 className="font-semibold text-base mb-1" style={{ color: theme.textHeading }}>No Evidence Files</h3>
+        <p className="text-xs" style={{ color: theme.textMuted }}>Upload evidence files to begin your investigation.</p>
       </div>
     );
   }
 
-  // ── Main render ───────────────────────────────────────────────────────────
-
   return (
-    <div className="space-y-3">
-
+    <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="text-[13px] font-semibold text-[#71717a] uppercase tracking-wider">Evidence Files</h3>
-          <span className="text-xs bg-[#f4f4f4] px-2.5 py-0.5 rounded-full text-[#71717a] border border-[#e8e8e4]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h2 className="text-lg font-black tracking-tight uppercase" style={{ color: theme.textHeading }}>
+            Evidence Files
+          </h2>
+          <span
+            className="text-xs px-3 py-1 rounded-full font-medium"
+            style={{
+              backgroundColor: theme.pillBg,
+              color: theme.pillText,
+              border: `1px solid ${theme.pillBorder}`
+            }}
+          >
             {evidence.length} files
           </span>
+
           {hasAnomalies && (
             <div className="flex items-center gap-2">
               {highCount > 0 && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full border bg-red-50 border-red-200 text-red-600">
-                  {highCount} high anomaly
+                <span className="text-xs px-2.5 py-0.5 rounded-full border bg-red-500/15 border-red-500/30 text-red-400 font-medium font-mono">
+                  {highCount} high
                 </span>
               )}
               {moderateCount > 0 && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full border bg-amber-50 border-amber-200 text-amber-600">
+                <span className="text-xs px-2.5 py-0.5 rounded-full border bg-amber-500/15 border-amber-500/30 text-amber-400 font-medium font-mono">
                   {moderateCount} moderate
                 </span>
               )}
               {highCount === 0 && moderateCount === 0 && detectionRan && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full border bg-emerald-50 border-emerald-200 text-emerald-600">
+                <span className="text-xs px-2.5 py-0.5 rounded-full border bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-medium font-mono">
                   All clear
                 </span>
               )}
             </div>
-          )}
-          {!hasAnomalies && detectionRan && (
-            <span className="text-xs px-2.5 py-0.5 rounded-full border bg-emerald-50 border-emerald-200 text-emerald-600">
-              All clear
-            </span>
           )}
         </div>
 
         <button
           onClick={handleDetectAnomalies}
           disabled={detecting}
-          className="text-xs bg-white hover:bg-[#f4f4f4] text-[#1f1f1f] px-3.5 py-2 rounded-xl border border-[#e8e8e4] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-          title="Run LLM anomaly detection across all documents using timeline + graph context"
+          className="text-xs font-semibold px-4 py-2 rounded-full border flex items-center gap-2 transition-all cursor-pointer hover:opacity-85 disabled:opacity-50 shadow-sm"
+          style={{
+            backgroundColor: theme.pillBg,
+            color: theme.pillText,
+            border: `1px solid ${theme.pillBorder}`
+          }}
         >
-          {detecting
-            ? <RefreshCw size={12} className="animate-spin" />
-            : <Zap size={12} />}
-          {detecting ? 'Detecting…' : hasAnomalies || detectionRan ? 'Re-detect Anomalies' : 'Detect Anomalies'}
+          {detecting ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
+          <span>{detecting ? 'Detecting…' : hasAnomalies || detectionRan ? 'Re-detect Anomalies' : 'Detect Anomalies'}</span>
         </button>
       </div>
 
-      {/* Table */}
-      <div className="bg-white border border-[#e8e8e4] rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pb-2">
+      {/* Main Table Container */}
+      <div
+        className="rounded-2xl overflow-hidden shadow-sm transition-colors duration-200"
+        style={{
+          backgroundColor: theme.bgCard,
+          border: `1px solid ${theme.border}`
+        }}
+      >
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#f4f4f4] text-[#71717a] uppercase font-mono text-xs">
+            <thead
+              className="text-xs uppercase font-mono tracking-wider font-semibold"
+              style={{
+                backgroundColor: isDark ? '#1a1c22' : '#f7f7f5',
+                color: theme.textMuted,
+                borderBottom: `1px solid ${theme.border}`
+              }}
+            >
               <tr>
-                <th className="px-5 py-3.5 font-medium">Evidence Name</th>
-                <th className="px-5 py-3.5 font-medium">Location / Source</th>
-                <th className="px-5 py-3.5 font-medium">Category</th>
-                <th className="px-5 py-3.5 font-medium w-44">Case Relevance</th>
-                <th className="px-5 py-3.5 font-medium w-36" title="0-100. Green=low, Amber=moderate, Red=high. Click score to expand details.">
-                  Anomaly Score
-                </th>
-                <th className="px-5 py-3.5 font-medium text-right">Size</th>
+                <th className="px-5 py-3.5">Evidence Name</th>
+                <th className="px-5 py-3.5">Location / Source</th>
+                <th className="px-5 py-3.5">Category</th>
+                <th className="px-5 py-3.5 w-44">Case Relevance</th>
+                <th className="px-5 py-3.5 w-36">Anomaly Score</th>
+                <th className="px-5 py-3.5 text-right">Size</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e8e8e4]">
+
+            <tbody>
               {evidence.map((file) => {
                 const IconComponent = file.icon;
-                const anomaly       = anomalyData[file.name] || null;
-                const isExpanded    = expandedRows.has(file.name);
-                const isExpandable  = anomaly && (anomaly.severity === 'moderate' || anomaly.severity === 'high' || Object.values(anomaly.category_scores || {}).some(v => v > 0));
+                const anomaly = anomalyData[file.name] || null;
+                const isExpanded = expandedRows.has(file.name);
+                const isExpandable = anomaly && (anomaly.severity === 'moderate' || anomaly.severity === 'high' || Object.values(anomaly.category_scores || {}).some(v => v > 0));
 
                 return (
                   <React.Fragment key={file.id}>
-                    <tr 
+                    <tr
                       id={`evidence-${file.name}`.replace(/[^a-zA-Z0-9_-]/g, '')}
-                      className={`hover:bg-[#f6f7ed]/60 transition-colors duration-500 group ${isNotesOpen ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                      className="transition-colors group"
+                      style={{
+                        borderBottom: `1px solid ${theme.borderRow}`
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = theme.bgRowHover; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                       draggable={isNotesOpen}
                       onDragStart={(e) => {
                         if (!isNotesOpen) return;
@@ -293,32 +329,47 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
                         }));
                       }}
                     >
-                      <td className={`px-5 py-3.5 font-medium text-[#1f1f1f] flex items-center gap-3 relative ${isNotesOpen ? 'pl-8' : ''}`}>
+                      <td
+                        className="px-5 py-3.5 font-medium flex items-center gap-3 relative"
+                        style={{ color: theme.textHeading }}
+                      >
                         {isNotesOpen && (
-                          <div className="absolute left-2 text-[#d4d4cf] opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="text-[#8b8e99] opacity-0 group-hover:opacity-100 transition-opacity">
                             <GripVertical size={14} />
                           </div>
                         )}
                         <IconComponent size={16} className={file.color} />
-                        {file.name}
+                        <span className="truncate max-w-[200px]" title={file.name}>{file.name}</span>
                       </td>
+
                       <td
-                        className="px-5 py-3.5 text-[#a1a19b] font-mono text-xs truncate max-w-[150px]"
+                        className="px-5 py-3.5 font-mono text-xs truncate max-w-[150px]"
+                        style={{ color: theme.textMuted }}
                         title={file.location}
                       >
                         {file.location}
                       </td>
+
                       <td className="px-5 py-3.5">
-                        <span className="px-2.5 py-1 bg-[#f4f4f4] rounded-lg text-xs text-[#71717a] border border-[#e8e8e4]">
+                        <span
+                          className="px-2.5 py-1 rounded-md text-xs font-medium"
+                          style={{
+                            backgroundColor: isDark ? '#1f222a' : '#f2f2ef',
+                            color: theme.pillText,
+                            border: `1px solid ${theme.pillBorder}`
+                          }}
+                        >
                           {file.type}
                         </span>
                       </td>
+
                       <td className="px-5 py-3.5">
                         <RelevanceBar score={file.relevance} />
                       </td>
+
                       <td className="px-5 py-3.5">
                         {detecting ? (
-                          <span className="text-xs text-[#a1a19b] animate-pulse font-mono">analysing…</span>
+                          <span className="text-xs text-[#8b8e99] animate-pulse font-mono">analysing…</span>
                         ) : (
                           <AnomalyBadge
                             score={anomaly?.anomaly_score ?? null}
@@ -327,15 +378,20 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
                           />
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-right text-[#a1a19b] font-mono text-xs">
+
+                      <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: theme.textMuted }}>
                         {file.size}
                       </td>
                     </tr>
 
-                    {/* Expanded flag detail panel */}
+                    {/* Expanded Detail Panel: Clean Mild Charcoal Backdrop (No Olive/Grey Artifacts) */}
                     {isExpandable && isExpanded && (
-                      <tr>
-                        <td colSpan={6} className="px-5 pb-5 bg-[#f6f7ed]/50">
+                      <tr style={{ borderBottom: `1px solid ${theme.borderRow}` }}>
+                        <td
+                          colSpan={6}
+                          className="px-5 py-4"
+                          style={{ backgroundColor: theme.bgNested }}
+                        >
                           <AnomalyDetailPanel anomaly={anomaly} />
                         </td>
                       </tr>
@@ -349,11 +405,8 @@ const EvidenceTab = ({ sessionId, isNotesOpen, highlightTarget }) => {
       </div>
 
       {hasAnomalies && (highCount > 0 || moderateCount > 0) && (
-        <p className="text-xs text-[#a1a19b] text-right">
-          Click a{' '}
-          <span className="text-amber-600">moderate</span> or{' '}
-          <span className="text-red-500">high</span>{' '}
-          anomaly badge to expand evidence flags.
+        <p className="text-xs text-right" style={{ color: theme.textMuted }}>
+          Click a <span className="text-amber-400 font-semibold">moderate</span> or <span className="text-red-400 font-semibold">high</span> anomaly badge to toggle detailed flags.
         </p>
       )}
     </div>

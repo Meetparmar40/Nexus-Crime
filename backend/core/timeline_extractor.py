@@ -87,8 +87,9 @@ JSON OUTPUT:"""
     def __init__(self):
         """Initialize the timeline extractor with LLM"""
         self.llm = ChatGroq(
-            model_name="qwen/qwen3.8-27b",
+            model_name="openai/gpt-oss-120b",
             temperature=0,
+            max_tokens=1500,
             api_key=settings.GROQ_API_KEY,
             max_retries=3
         )

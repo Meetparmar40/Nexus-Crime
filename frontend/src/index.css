@@ -12,7 +12,7 @@
 
   color-scheme: light;
   color: #1f1f1f;
-  background-color: #eef0f4;
+  background-color: #f7f7f5;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -20,21 +20,29 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html.dark, :root.dark {
+  color-scheme: dark;
+  color: #c4c6ce;
+  background-color: #0f1013;
+}
+
 a {
   font-weight: 500;
-  color: #1f1f1f;
+  color: inherit;
   text-decoration: none;
   transition: color 0.2s ease;
-}
-a:hover {
-  color: #3a3a3a;
 }
 
 body {
   margin: 0;
   min-width: 100%;
   min-height: 100vh;
-  background: #eef0f4;
+  background: #f7f7f5;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background: #0f1013;
 }
 
 #root {
@@ -71,27 +79,19 @@ h3 {
   color: #1f1f1f;
 }
 
+html.dark h1, html.dark h2, html.dark h3 {
+  color: #ffffff;
+}
+
 button {
-  border-radius: 10px;
-  border: 1px solid #e8e8e4;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
   font-family: inherit;
-  background-color: #ffffff;
-  color: #1f1f1f;
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
 }
 
-button:hover {
-  background-color: #f4f4f4;
-  border-color: #d4d4cf;
-}
-
 button:focus-visible {
-  outline: 2px solid #1f1f1f;
+  outline: 2px solid #3d4255;
   outline-offset: 2px;
 }
 
@@ -114,33 +114,41 @@ button:focus-visible {
   background: #a8a8a3;
 }
 
-/* Light-theme compatibility for older dark utility classes used in subviews. */
-:where(.bg-slate-950, .bg-slate-900, .bg-zinc-950, .bg-zinc-900, [class~="bg-slate-950/50"], [class~="bg-slate-900/50"], [class~="bg-slate-900/40"], [class~="bg-slate-900/30"], [class~="bg-slate-800/50"], [class~="bg-slate-800/40"], [class~="bg-slate-800/30"], [class~="bg-zinc-950/50"], [class~="bg-zinc-900/60"], [class~="bg-zinc-900/50"], [class~="bg-zinc-900/40"], [class~="bg-zinc-800/50"], [class~="bg-zinc-800/30"]) {
+html.dark ::-webkit-scrollbar-thumb {
+  background: #292c35;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3d4255;
+}
+
+/* Light-theme compatibility for older dark utility classes used in subviews when not in dark mode. */
+:where(:root:not(.dark)) :where(.bg-slate-950, .bg-slate-900, .bg-zinc-950, .bg-zinc-900, [class~="bg-slate-950/50"], [class~="bg-slate-900/50"], [class~="bg-slate-900/40"], [class~="bg-slate-900/30"], [class~="bg-slate-800/50"], [class~="bg-slate-800/40"], [class~="bg-slate-800/30"], [class~="bg-zinc-950/50"], [class~="bg-zinc-900/60"], [class~="bg-zinc-900/50"], [class~="bg-zinc-900/40"], [class~="bg-zinc-800/50"], [class~="bg-zinc-800/30"]) {
   background-color: #ffffff !important;
 }
 
-:where([class*="from-slate-"], [class*="to-slate-"], [class*="via-slate-"], [class*="from-zinc-"], [class*="to-zinc-"]) {
+:where(:root:not(.dark)) :where([class*="from-slate-"], [class*="to-slate-"], [class*="via-slate-"], [class*="from-zinc-"], [class*="to-zinc-"]) {
   --tw-gradient-from: #ffffff !important;
   --tw-gradient-via: #f6f7ed !important;
   --tw-gradient-to: #f0f0eb !important;
 }
 
-:where(.text-slate-100, .text-slate-200, .text-zinc-100, .text-zinc-200, .prose-invert :is(p, li, td)) {
+:where(:root:not(.dark)) :where(.text-slate-100, .text-slate-200, .text-zinc-100, .text-zinc-200, .prose-invert :is(p, li, td)) {
   color: #1f1f1f !important;
 }
 
-:where(.text-slate-300, .text-slate-400, .text-zinc-300, .text-zinc-400, .prose-invert :is(h1, h2, h3, strong)) {
+:where(:root:not(.dark)) :where(.text-slate-300, .text-slate-400, .text-zinc-300, .text-zinc-400, .prose-invert :is(h1, h2, h3, strong)) {
   color: #3a3a3a !important;
 }
 
-:where(.text-slate-500, .text-slate-600, .text-slate-700, .text-zinc-500, .text-zinc-600, .text-zinc-700) {
+:where(:root:not(.dark)) :where(.text-slate-500, .text-slate-600, .text-slate-700, .text-zinc-500, .text-zinc-600, .text-zinc-700) {
   color: #71717a !important;
 }
 
-:where(.border-slate-800, .border-slate-700, [class~="border-slate-700/50"], [class~="border-slate-700/30"], .border-zinc-800, .border-zinc-700, [class~="border-zinc-800/50"]) {
+:where(:root:not(.dark)) :where(.border-slate-800, .border-slate-700, [class~="border-slate-700/50"], [class~="border-slate-700/30"], .border-zinc-800, .border-zinc-700, [class~="border-zinc-800/50"]) {
   border-color: #e8e8e4 !important;
 }
 
-:where(.bg-slate-800, .bg-zinc-800, [class~="bg-zinc-800/50"], [class~="bg-zinc-800/30"]) {
+:where(:root:not(.dark)) :where(.bg-slate-800, .bg-zinc-800, [class~="bg-zinc-800/50"], [class~="bg-zinc-800/30"]) {
   background-color: #f4f4f4 !important;
 }

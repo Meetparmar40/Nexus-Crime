@@ -6,6 +6,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import BaseOutputParser, StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.documents import Document
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from config.settings import settings
 from typing import List
 import re
@@ -170,15 +171,50 @@ def sanitize_collection_name(session_id: str) -> str:
 
 
 def get_vectorstore(session_id: str) -> Chroma:
-    embeddings = OllamaEmbeddings(
-        model="nomic-embed-text",
-        base_url=settings.OLLAMA_BASE_URL
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
-    return Chroma(
-        persist_directory=settings.CHROMA_DB_PATH,
-        embedding_function=embeddings,
-        collection_name=sanitize_collection_name(session_id)
-    )
+    collection_name = sanitize_collection_name(session_id)
+
+    # Check for dimension mismatch with existing Chroma collection (e.g. if created with 768-dim nomic-embed-text)
+    try:
+        import chromadb
+        client = chromadb.PersistentClient(path=settings.CHROMA_DB_PATH)
+        try:
+            col = client.get_collection(name=collection_name)
+            # 384-dim dummy vector probe triggers InvalidDimensionException if dimension is mismatched
+            col.query(query_embeddings=[[0.0] * 384], n_results=1)
+        except Exception as probe_err:
+            if "dimension" in str(probe_err).lower():
+                print(f"[RAG] Dimension mismatch detected for collection '{collection_name}' ({probe_err}). Recreating collection...")
+                try:
+                    client.delete_collection(name=collection_name)
+                except Exception as del_err:
+                    print(f"[RAG] Warning deleting mismatched collection: {del_err}")
+    except Exception:
+        pass
+
+    try:
+        return Chroma(
+            persist_directory=settings.CHROMA_DB_PATH,
+            embedding_function=embeddings,
+            collection_name=collection_name
+        )
+    except Exception as e:
+        if "dimension" in str(e).lower():
+            print(f"[RAG] Dimension error on Chroma initialization for '{collection_name}': {e}. Recreating...")
+            try:
+                import chromadb
+                client = chromadb.PersistentClient(path=settings.CHROMA_DB_PATH)
+                client.delete_collection(name=collection_name)
+            except Exception:
+                pass
+            return Chroma(
+                persist_directory=settings.CHROMA_DB_PATH,
+                embedding_function=embeddings,
+                collection_name=collection_name
+            )
+        raise
 
 
 def ingest_into_vectorstore(session_id: str, chunks: List[Document]) -> None:
@@ -187,7 +223,22 @@ def ingest_into_vectorstore(session_id: str, chunks: List[Document]) -> None:
         print("[INGEST] No chunks to ingest.")
         return
     vectorstore = get_vectorstore(session_id)
-    vectorstore.add_documents(chunks)
+    try:
+        vectorstore.add_documents(chunks)
+    except Exception as e:
+        if "dimension" in str(e).lower():
+            print(f"[INGEST] Dimension mismatch during add_documents for collection '{sanitize_collection_name(session_id)}'. Recreating collection...")
+            import chromadb
+            collection_name = sanitize_collection_name(session_id)
+            client = chromadb.PersistentClient(path=settings.CHROMA_DB_PATH)
+            try:
+                client.delete_collection(name=collection_name)
+            except Exception:
+                pass
+            vectorstore = get_vectorstore(session_id)
+            vectorstore.add_documents(chunks)
+        else:
+            raise
     print(f"[INGEST] Added {len(chunks)} chunks to collection '{sanitize_collection_name(session_id)}'")
 
 
@@ -212,8 +263,8 @@ def get_rag_chain(session_id: str):
         chain.invoke("your question here")
     """
     llm = ChatGroq(
-        model_name="qwen/qwen3.8-27b",
-        temperature=0,              # no creative gap-filling
+        model_name="openai/gpt-oss-120b",
+        temperature=0,
         api_key=settings.GROQ_API_KEY
     )
 
