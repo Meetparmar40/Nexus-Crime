@@ -1,0 +1,17 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated caches
+node_modules/
+.vite/
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local databases and uploaded/private case data
+backend/chroma_db/
+backend/data/forensics.db
+backend/data/uploads/
+Case/

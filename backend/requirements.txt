@@ -1,0 +1,17 @@
+langchain
+pydantic
+uvicorn
+fastapi
+python-multipart
+pydantic-settings
+langchain-text-splitters
+langchain-groq
+langchain-chroma
+langchain-classic
+langchain-community
+langchain-docling
+langchain-experimental
+langsmith
+langchain-ollama
+docling
+tavily-python

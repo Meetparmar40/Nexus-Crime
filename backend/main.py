@@ -1,0 +1,1062 @@
+import os
+import json
+import hashlib
+import shutil
+from datetime import datetime
+from typing import List, Optional
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel
+
+from core.rag_pipeline import get_rag_chain, ingest_into_vectorstore, get_vectorstore, sanitize_collection_name
+from core.ingestion import load_and_split_document, extract_zip_file, is_supported_file, SUPPORTED_EXTENSIONS
+from core.models import EvidenceMetadata
+from core.timeline_extractor import extract_timeline_from_session
+from utils.session_handler import (
+    get_all_sessions,
+    create_new_session,
+    load_session,
+    save_session,
+    add_message_to_session,
+    add_file_to_session,
+    file_exists_in_session,
+    delete_session,
+    get_session_notes,
+    add_note_to_session,
+    update_note,
+    delete_note,
+    clear_session_messages,
+)
+from config.settings import settings
+
+# Ensure upload directory exists
+UPLOAD_DIR = "data/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+# --- Pydantic Models for API ---
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+    deep_research: bool = False
+
+
+class ChatResponse(BaseModel):
+    response: str
+    sources: List[str] = []
+
+
+class SessionCreate(BaseModel):
+    title: str = "New Investigation"
+
+
+class SessionResponse(BaseModel):
+    id: str
+    title: str
+    created_at: str
+    messages: List[dict] = []
+    files: List[str] = []
+
+
+class MessageResponse(BaseModel):
+    role: str
+    content: str
+
+
+class NoteCreate(BaseModel):
+    content: str
+    tags: List[str] = []
+    attachments: List[dict] = []
+
+
+class NoteResponse(BaseModel):
+    id: str
+    session_id: str
+    content: str
+    tags: List[str] = []
+    attachments: List[dict] = []
+    created_at: str
+    updated_at: str
+
+
+# --- Lifespan for startup/shutdown ---
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("🔬 NEXUS Forensic Analysis Backend Starting...")
+    print(f"📁 Upload directory: {UPLOAD_DIR}")
+    print(f"🗄️ ChromaDB path: {settings.CHROMA_DB_PATH}")
+    yield
+    # Shutdown
+    print("🔬 NEXUS Backend Shutting Down...")
+
+
+# --- FastAPI App ---
+
+app = FastAPI(
+    title="NEXUS - Digital Forensics RAG API",
+    description="AI-powered digital forensics analysis backend using RAG",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Global exception handler — ensures CORS headers are present even on unhandled 500s
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    origin = request.headers.get("origin", "")
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    cors_origin = origin if origin in allowed_origins else ""
+    headers = {"Access-Control-Allow-Credentials": "true"}
+    if cors_origin:
+        headers["Access-Control-Allow-Origin"] = cors_origin
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"},
+        headers=headers,
+    )
+
+
+# CORS middleware for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# --- Helper Functions ---
+
+def compute_file_hash(file_path: str) -> str:
+    """Compute SHA256 hash of a file for chain of custody."""
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
+
+# --- API Endpoints ---
+
+@app.get("/")
+async def root():
+    return {
+        "message": "NEXUS Digital Forensics RAG API",
+        "status": "operational",
+        "version": "1.0.0"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+# --- Session Management ---
+
+@app.get("/sessions", response_model=List[SessionResponse])
+async def list_sessions():
+    """Get all investigation sessions."""
+    sessions = get_all_sessions()
+    return sessions
+
+
+@app.post("/sessions", response_model=SessionResponse)
+async def create_session(session_data: SessionCreate):
+    """Create a new investigation session."""
+    session_id = create_new_session(session_data.title)
+    session = load_session(session_id)
+    return session
+
+
+@app.get("/sessions/{session_id}", response_model=SessionResponse)
+async def get_session(session_id: str):
+    """Get a specific session with all messages and files."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.put("/sessions/{session_id}")
+async def update_session(session_id: str, session_data: SessionCreate):
+    """Update session title."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    save_session(session_id, {"title": session_data.title})
+    return {"message": "Session updated", "session_id": session_id}
+
+
+# --- Notes Endpoints ---
+
+@app.get("/sessions/{session_id}/notes", response_model=List[NoteResponse])
+async def list_notes(session_id: str):
+    """Get all notes for a session."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return get_session_notes(session_id)
+
+
+@app.post("/sessions/{session_id}/notes", response_model=NoteResponse)
+async def create_note(session_id: str, note_data: NoteCreate):
+    """Create a new note for a session."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    note = add_note_to_session(
+        session_id=session_id,
+        content=note_data.content,
+        tags=note_data.tags,
+        attachments=note_data.attachments
+    )
+    return note
+
+
+@app.put("/sessions/{session_id}/notes/{note_id}")
+async def update_existing_note(session_id: str, note_id: str, note_data: NoteCreate):
+    """Update an existing note."""
+    success = update_note(
+        note_id=note_id,
+        content=note_data.content,
+        tags=note_data.tags,
+        attachments=note_data.attachments
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"message": "Note updated successfully"}
+
+
+@app.delete("/sessions/{session_id}/notes/{note_id}")
+async def delete_existing_note(session_id: str, note_id: str):
+    """Delete a note."""
+    success = delete_note(note_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"message": "Note deleted successfully"}
+
+
+# --- Evidence Upload & Ingestion ---
+
+@app.post("/sessions/{session_id}/upload")
+async def upload_evidence(
+    session_id: str,
+    file: UploadFile = File(...),
+    case_id: Optional[str] = Form(None)
+):
+    """
+    Upload forensic evidence file(s) and ingest into vector store.
+    Supports:
+    - Single files: PDF, DOCX, PPTX, TXT, CSV, JSON, LOG
+    - ZIP archives: Will be extracted and all supported files processed
+    """
+    # Validate session exists
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Get file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    # Allowed extensions (including zip)
+    allowed_extensions = SUPPORTED_EXTENSIONS + [".zip"]
+    
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+    
+    # Save file to disk
+    session_upload_dir = os.path.join(UPLOAD_DIR, session_id)
+    os.makedirs(session_upload_dir, exist_ok=True)
+    
+    file_path = os.path.join(session_upload_dir, file.filename)
+    
+    try:
+        # Read and save file
+        file_content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+        
+        # Check if it's a ZIP file
+        if file_ext == ".zip":
+            return await process_zip_upload(
+                session_id=session_id,
+                zip_path=file_path,
+                session_upload_dir=session_upload_dir,
+                case_id=case_id
+            )
+        else:
+            # Process single file
+            return await process_single_file(
+                session_id=session_id,
+                file_path=file_path,
+                file_content=file_content,
+                file_ext=file_ext,
+                filename=file.filename,
+                case_id=case_id
+            )
+        
+    except Exception as e:
+        # Clean up on failure
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+
+
+@app.post("/sessions/{session_id}/people")
+async def create_person(session_id: str, name: str = Form(...), role: str = Form(None), notes: str = Form(None)):
+    """Add a person of interest to the case graph."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    person = {"name": name, "role": role, "notes": notes}
+    try:
+        created = add_person(session_id, person)
+        return {"message": "Person added", "person": created}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding person: {e}")
+
+
+@app.get("/sessions/{session_id}/people")
+async def list_people(session_id: str):
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        people = get_people(session_id)
+        return {"session_id": session_id, "people": people}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error querying people: {e}")
+
+
+async def process_single_file(
+    session_id: str,
+    file_path: str,
+    file_content: bytes,
+    file_ext: str,
+    filename: str,
+    case_id: Optional[str]
+):
+    """Process a single evidence file."""
+    # Compute hash for chain of custody
+    file_hash = compute_file_hash(file_path)
+    
+    # Check if file already exists (by hash or filename)
+    existing = file_exists_in_session(session_id, file_hash=file_hash, filename=filename)
+    if existing["exists"]:
+        # Clean up the uploaded file since it's a duplicate
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return {
+            "message": "File already exists in this session",
+            "filename": filename,
+            "existing_filename": existing["filename"],
+            "matched_by": existing["matched_by"],
+            "skipped": True,
+            "session_id": session_id
+        }
+    
+    # Create metadata
+    metadata = EvidenceMetadata(
+        filename=filename,
+        file_hash=file_hash,
+        file_type=file_ext,
+        case_id=case_id or session_id
+    )
+    
+    # Load and split document
+    chunks = load_and_split_document(file_path, metadata)
+    
+    if not chunks:
+        raise HTTPException(status_code=400, detail="Could not extract content from file")
+    
+    # Ingest into vector store
+    ingest_into_vectorstore(session_id, chunks)
+    
+    # Store file reference in session
+    add_file_to_session(
+        session_id=session_id,
+        filename=filename,
+        file_content=file_content,
+        file_hash=file_hash,
+        file_type=file_ext
+    )
+    
+    return {
+        "message": "Evidence uploaded and processed successfully",
+        "filename": filename,
+        "file_hash": file_hash,
+        "chunks_created": len(chunks),
+        "session_id": session_id
+    }
+
+
+async def process_zip_upload(
+    session_id: str,
+    zip_path: str,
+    session_upload_dir: str,
+    case_id: Optional[str]
+):
+    """
+    Process a ZIP file containing multiple evidence files.
+    Extracts all supported files and ingests them into the vector store.
+    """
+    results = {
+        "message": "ZIP archive processed",
+        "session_id": session_id,
+        "zip_filename": os.path.basename(zip_path),
+        "files_processed": [],
+        "files_skipped": [],
+        "files_duplicate": [],
+        "total_chunks": 0,
+        "errors": []
+    }
+    
+    try:
+        # Extract ZIP to session directory
+        extract_dir = os.path.join(session_upload_dir, "extracted")
+        os.makedirs(extract_dir, exist_ok=True)
+        
+        # Extract all supported files
+        extracted_files = extract_zip_file(zip_path, extract_dir)
+        
+        if not extracted_files:
+            raise HTTPException(
+                status_code=400, 
+                detail="No supported files found in ZIP archive. Supported: " + ", ".join(SUPPORTED_EXTENSIONS)
+            )
+        
+        # Process each extracted file
+        for extracted_path in extracted_files:
+            filename = os.path.basename(extracted_path)
+            file_ext = os.path.splitext(filename)[1].lower()
+            
+            try:
+                # Read file content
+                with open(extracted_path, "rb") as f:
+                    file_content = f.read()
+                
+                # Compute hash
+                file_hash = compute_file_hash(extracted_path)
+                
+                # Check for duplicates before processing
+                existing = file_exists_in_session(session_id, file_hash=file_hash, filename=filename)
+                if existing["exists"]:
+                    results["files_duplicate"].append({
+                        "filename": filename,
+                        "existing_filename": existing["filename"],
+                        "matched_by": existing["matched_by"]
+                    })
+                    print(f"Skipping duplicate file: {filename} (matched by {existing['matched_by']})")
+                    continue
+                
+                # Create metadata
+                metadata = EvidenceMetadata(
+                    filename=filename,
+                    file_hash=file_hash,
+                    file_type=file_ext,
+                    case_id=case_id or session_id
+                )
+                
+                # Always register the file in the session (even if content can't be parsed)
+                add_file_to_session(
+                    session_id=session_id,
+                    filename=filename,
+                    file_content=file_content,
+                    file_hash=file_hash,
+                    file_type=file_ext
+                )
+
+                # Load and split document
+                chunks = load_and_split_document(extracted_path, metadata)
+                
+                if chunks:
+                    # Ingest into vector store
+                    ingest_into_vectorstore(session_id, chunks)
+                    
+                    results["files_processed"].append({
+                        "filename": filename,
+                        "file_hash": file_hash,
+                        "chunks": len(chunks)
+                    })
+                    results["total_chunks"] += len(chunks)
+                else:
+                    results["files_skipped"].append({
+                        "filename": filename,
+                        "reason": "No content extracted"
+                    })
+                    
+            except Exception as e:
+                results["errors"].append({
+                    "filename": filename,
+                    "error": str(e)
+                })
+                print(f"Error processing {filename}: {e}")
+        
+        # Clean up: optionally remove extracted files (keep them for reference)
+        # shutil.rmtree(extract_dir)
+        
+        # Remove the original ZIP file to save space
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
+        
+        results["message"] = f"Successfully processed {len(results['files_processed'])} files from ZIP archive"
+        
+        return results
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing ZIP file: {str(e)}")
+
+
+@app.get("/sessions/{session_id}/files")
+async def list_session_files(session_id: str):
+    """List all files uploaded to a session."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    files = session.get("files", [])
+
+    # Fallback: if DB has no files but files exist on disk, auto-register them
+    if not files:
+        session_upload_dir = os.path.join(UPLOAD_DIR, session_id)
+        disk_files = []
+        # Check both the session dir and the 'extracted' subdirectory (from ZIP uploads)
+        for search_dir in [session_upload_dir, os.path.join(session_upload_dir, "extracted")]:
+            if os.path.isdir(search_dir):
+                for fname in os.listdir(search_dir):
+                    fpath = os.path.join(search_dir, fname)
+                    if os.path.isfile(fpath):
+                        ext = os.path.splitext(fname)[1].lower()
+                        if ext in SUPPORTED_EXTENSIONS and fname not in disk_files:
+                            disk_files.append(fname)
+        # Register discovered files so future calls skip this fallback
+        for fname in disk_files:
+            add_file_to_session(session_id=session_id, filename=fname)
+        if disk_files:
+            files = disk_files
+
+    return {"session_id": session_id, "files": files}
+
+
+@app.get("/sessions/{session_id}/files/download/{filename:path}")
+async def download_session_file(session_id: str, filename: str):
+    """Serve a raw evidence file for viewing/downloading."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    session_upload_dir = os.path.join(UPLOAD_DIR, session_id)
+    
+    # Check root dir
+    file_path = os.path.join(session_upload_dir, filename)
+    if not os.path.exists(file_path):
+        # Check extracted dir
+        extract_path = os.path.join(session_upload_dir, "extracted", filename)
+        if os.path.exists(extract_path):
+            file_path = extract_path
+        else:
+            raise HTTPException(status_code=404, detail="File not found")
+            
+    return FileResponse(file_path)
+
+
+# --- RAG Chat ---
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_with_evidence(request: ChatRequest):
+    """
+    Send a message to the AI forensic analyst.
+    The AI will use RAG to answer based on uploaded evidence.
+    """
+    session = load_session(request.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Check if there's any evidence in the vector store
+    vectorstore = get_vectorstore(request.session_id)
+    
+    try:
+        query_text = request.message
+        tavily_sources = []
+        
+        # If deep research is requested, fetch web context using Tavily
+        if request.deep_research and settings.TAVILY_API_KEY:
+            try:
+                from langchain_community.tools.tavily_search import TavilySearchResults
+                import os
+                
+                # Make sure the environment variable is set for the wrapper
+                os.environ["TAVILY_API_KEY"] = settings.TAVILY_API_KEY
+                tavily_tool = TavilySearchResults(max_results=3)
+                search_results = tavily_tool.invoke({"query": request.message})
+                
+                if search_results and isinstance(search_results, list):
+                    web_context = "\n".join([f"- {res['content']} (Source: {res['url']})" for res in search_results if 'content' in res and 'url' in res])
+                    if web_context:
+                        query_text = f"USER QUERY: {request.message}\n\n[DEEP RESEARCH WEB CONTEXT]\n{web_context}"
+                        # Save the URLs to add to the sources list
+                        tavily_sources = [f"Web: {res['url']}" for res in search_results if 'url' in res]
+                        print(f"[Chat] Appended deep research context to query.")
+            except Exception as te:
+                print(f"[Chat] Warning: Tavily deep research failed: {te}")
+
+        # Get RAG chain for this session
+        qa_chain = get_rag_chain(request.session_id)
+        
+        # Run the query (using the potentially enriched query_text)
+        result = qa_chain.invoke({"query": query_text})
+        
+        # Extract response and sources
+        response_text = result.get("result", "I couldn't generate a response.")
+        source_docs = result.get("source_documents", [])
+        
+        # Get unique source filenames
+        sources = list(set([
+            doc.metadata.get("filename", "Unknown") 
+            for doc in source_docs
+        ]))
+        
+        # Append Tavily web sources if any
+        if tavily_sources:
+            sources.extend(tavily_sources)
+        
+        # Save messages to session (save the ORIGINAL message to the session log)
+        add_message_to_session(request.session_id, "user", request.message)
+
+        # Save assistant response including sources as a JSON payload so
+        # the frontend can persist and later render reference cards.
+        assistant_payload = json.dumps({
+            "text": response_text,
+            "sources": sources
+        })
+        add_message_to_session(request.session_id, "assistant", assistant_payload)
+        
+        return ChatResponse(response=response_text, sources=sources)
+        
+    except Exception as e:
+        # If no documents in vector store, return helpful message
+        error_msg = str(e)
+        if "no documents" in error_msg.lower() or "empty" in error_msg.lower():
+            return ChatResponse(
+                response="No evidence files have been uploaded yet. Please upload forensic documents (PDF, DOCX, PPTX) to begin analysis.",
+                sources=[]
+            )
+        raise HTTPException(status_code=500, detail=f"Error during analysis: {error_msg}")
+
+
+@app.get("/sessions/{session_id}/messages", response_model=List[MessageResponse])
+async def get_session_messages(session_id: str):
+    """Get all messages from a session."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return session.get("messages", [])
+
+@app.delete("/sessions/{session_id}/messages")
+async def delete_session_messages(session_id: str):
+    """Clear all messages from a session."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    clear_session_messages(session_id)
+    return {"message": "Chat cleared successfully", "session_id": session_id}
+
+
+# --- Utility Endpoints ---
+
+@app.delete("/sessions/{session_id}")
+async def delete_session_endpoint(session_id: str):
+    """Delete a session and all associated data."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Delete uploaded files from disk
+    session_upload_dir = os.path.join(UPLOAD_DIR, session_id)
+    if os.path.exists(session_upload_dir):
+        shutil.rmtree(session_upload_dir)
+    
+    # Delete from ChromaDB vector store
+    try:
+        from chromadb import Client
+        from chromadb.config import Settings
+        import chromadb
+        
+        client = chromadb.PersistentClient(path=settings.CHROMA_DB_PATH)
+        collection_name = sanitize_collection_name(session_id)
+        
+        # Try to delete the collection
+        try:
+            client.delete_collection(name=collection_name)
+        except Exception as e:
+            print(f"Could not delete ChromaDB collection: {e}")
+    except Exception as e:
+        print(f"ChromaDB cleanup error: {e}")
+
+    # Delete from SQLite database
+    deleted = delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=500, detail="Failed to delete session from database")
+    
+    return {"message": "Session deleted successfully", "session_id": session_id}
+
+
+@app.get("/sessions/{session_id}/search")
+async def search_evidence(session_id: str, query: str, k: int = 5):
+    """
+    Search the vector store for relevant evidence chunks.
+    Useful for exploring what evidence is available.
+    """
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        vectorstore = get_vectorstore(session_id)
+        results = vectorstore.similarity_search(query, k=k)
+        
+        return {
+            "query": query,
+            "results": [
+                {
+                    "content": doc.page_content[:500] + "..." if len(doc.page_content) > 500 else doc.page_content,
+                    "metadata": doc.metadata
+                }
+                for doc in results
+            ]
+        }
+    except Exception as e:
+        return {"query": query, "results": [], "error": str(e)}
+
+
+# --- User Profiling / Entity Extraction Endpoints ---
+
+@app.post("/sessions/{session_id}/extract-entities")
+async def extract_entities(session_id: str):
+    """
+    Extract entities and relationships from session documents using AI.
+    Uses LLMGraphTransformer with documents loaded directly from ingestion loaders.
+    Does NOT use ChromaDB embeddings.
+    """
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        from core.User_profiling import extract_graph_from_session_files
+        # Extract graph using ingestion loaders directly (not ChromaDB)
+        result = extract_graph_from_session_files(session_id, UPLOAD_DIR)
+        
+        if result.get("error"):
+            return {
+                "success": False,
+                "message": result.get("error"),
+                "nodes": [],
+                "edges": []
+            }
+        
+        if not result.get("nodes"):
+            return {
+                "success": False,
+                "message": result.get("message", "No entities could be extracted"),
+                "nodes": [],
+                "edges": []
+            }
+        
+        # Store the graph data in session
+        session["graph_data"] = result
+        save_session(session_id, session)
+        
+        return {
+            "success": True,
+            "message": f"Extracted {result.get('total_nodes', 0)} entities and {result.get('total_edges', 0)} relationships",
+            **result
+        }
+    except Exception as e:
+        print(f"Entity extraction error: {e}")
+        return {
+            "success": False,
+            "message": str(e),
+            "nodes": [],
+            "edges": []
+        }
+
+
+@app.get("/sessions/{session_id}/graph")
+async def get_session_graph(session_id: str):
+    """Get the extracted knowledge graph for a session (returns cached data only)"""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    graph_data = session.get("graph_data", {"nodes": [], "edges": []})
+    
+    has_data = len(graph_data.get("nodes", [])) > 0
+    if has_data:
+        print(f"[API] Returning cached graph for session: {session_id}")
+    
+    return {
+        "session_id": session_id,
+        "nodes": graph_data.get("nodes", []),
+        "edges": graph_data.get("edges", []),
+        "total_nodes": len(graph_data.get("nodes", [])),
+        "total_edges": len(graph_data.get("edges", [])),
+        "cached": has_data
+    }
+
+
+# --- Timeline Reconstruction ---
+
+@app.post("/sessions/{session_id}/extract-timeline")
+async def extract_timeline(session_id: str):
+    """
+    Extract timeline events from all documents in the session.
+    Uses LLM to identify temporal events directly from document content.
+    Automatically extracts entities first if not already available,
+    so the LLM can use canonical entity names in the actors field.
+    """
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        print(f"[API] Extracting timeline for session: {session_id}")
+        
+        # --- Ensure entities are extracted first ---
+        graph_data = session.get("graph_data", {})
+        entities = graph_data.get("nodes", [])
+        entities_auto_extracted = False
+        
+        if not entities:
+            print(f"[API] No entities found — auto-extracting entities before timeline...")
+            from core.User_profiling import extract_graph_from_session_files
+            graph_result = extract_graph_from_session_files(session_id, UPLOAD_DIR)
+            
+            if graph_result.get("nodes"):
+                entities = graph_result["nodes"]
+                session["graph_data"] = graph_result
+                save_session(session_id, session)
+                entities_auto_extracted = True
+                print(f"[API] Auto-extracted {len(entities)} entities")
+            else:
+                print(f"[API] Entity extraction returned no nodes, proceeding without entity context")
+        
+        # --- Extract timeline with entity context ---
+        result = extract_timeline_from_session(session_id, UPLOAD_DIR, entities=entities)
+        
+        if not result.get("timeline"):
+            return {
+                "success": True,
+                "message": "No timeline events found in documents",
+                "timeline": [],
+                "total_events": 0,
+                "entities_auto_extracted": entities_auto_extracted,
+            }
+        
+        # Store timeline in session for caching
+        session["timeline_data"] = result
+        save_session(session_id, session)
+        
+        return {
+            "success": True,
+            "message": result.get("message", "Timeline extracted"),
+            "timeline": result.get("timeline", []),
+            "total_events": result.get("total_events", 0),
+            "files_processed": result.get("files_processed", 0),
+            "entities_auto_extracted": entities_auto_extracted,
+        }
+    except Exception as e:
+        print(f"Timeline extraction error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "message": str(e),
+            "timeline": [],
+            "total_events": 0
+        }
+
+
+@app.get("/sessions/{session_id}/timeline")
+async def get_session_timeline(session_id: str, entity: Optional[str] = None):
+    """Get the extracted timeline for a session (returns cached data only).
+    
+    Query params:
+        entity: Optional entity name to filter timeline events by actor.
+    """
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Return cached timeline if available
+    timeline_data = session.get("timeline_data", {})
+    
+    if timeline_data and timeline_data.get("timeline"):
+        print(f"[API] Returning cached timeline for session: {session_id}")
+        timeline = timeline_data.get("timeline", [])
+        
+        # Filter by entity name if requested
+        if entity:
+            entity_lower = entity.strip().lower()
+            entity_words = set(entity_lower.split())
+            print(f"[API] Filtering timeline for entity: '{entity}' (words: {entity_words})")
+            
+            # Collect all unique actor names for debugging
+            all_actors = set()
+            for evt in timeline:
+                for a in evt.get("actors", []):
+                    all_actors.add(a)
+            print(f"[API] All actors in timeline: {all_actors}")
+            
+            filtered = []
+            for evt in timeline:
+                actors = evt.get("actors", [])
+                for actor in actors:
+                    actor_lower = actor.lower()
+                    actor_words = set(actor_lower.split())
+                    # Match if: exact, contains, or any word overlap
+                    if (actor_lower == entity_lower
+                            or entity_lower in actor_lower
+                            or actor_lower in entity_lower
+                            or entity_words & actor_words):
+                        filtered.append(evt)
+                        break
+            print(f"[API] Filtered {len(filtered)}/{len(timeline)} events for '{entity}'")
+            timeline = filtered
+        
+        return {
+            "session_id": session_id,
+            "timeline": timeline,
+            "total_events": len(timeline),
+            "cached": True,
+            "filtered_by": entity or None,
+        }
+    
+    # No cached timeline - return empty (user must click Extract button)
+    return {
+        "session_id": session_id,
+        "timeline": [],
+        "total_events": 0,
+        "cached": False,
+        "message": "No timeline extracted yet. Click 'Extract Timeline' to generate."
+    }
+
+
+# --- Anomaly Detection ---
+
+@app.post("/sessions/{session_id}/detect-anomalies")
+async def detect_anomalies(session_id: str):
+    """
+    Run LLM-based anomaly detection on all documents in the session.
+
+    Uses:
+      - Raw document content (loaded from uploaded files)
+      - Cached timeline events (from extract-timeline) for temporal pattern analysis
+      - Cached knowledge graph (from extract-entities) for relational pattern analysis
+
+    Returns document-level anomaly scores (0-100) with per-category breakdowns and
+    cited evidence flags, plus person-level aggregated scores.
+    """
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        from core.anomaly_detector import detect_anomalies_for_session
+
+        # Use cached graph and timeline data as context — run those first for best results
+        graph_data    = session.get("graph_data",    {"nodes": [], "edges": []})
+        timeline_data = session.get("timeline_data", {"timeline": []})
+
+        print(f"[API] Running anomaly detection for session: {session_id}")
+        print(f"[API] Context: {len(graph_data.get('nodes', []))} graph nodes, "
+              f"{len(timeline_data.get('timeline', []))} timeline events")
+
+        result = detect_anomalies_for_session(
+            session_id=session_id,
+            upload_dir=UPLOAD_DIR,
+            graph_data=graph_data,
+            timeline_data=timeline_data,
+        )
+
+        # Cache results in session
+        session["anomaly_data"] = result
+        save_session(session_id, session)
+
+        return {
+            "success": True,
+            **result,
+        }
+
+    except Exception as e:
+        print(f"[API] Anomaly detection error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "message": str(e),
+            "document_anomalies": [],
+            "person_anomalies": [],
+        }
+
+
+@app.get("/sessions/{session_id}/anomalies")
+async def get_session_anomalies(session_id: str):
+    """Get cached anomaly detection results for a session."""
+    session = load_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    anomaly_data = session.get("anomaly_data", {})
+    has_data     = bool(anomaly_data.get("document_anomalies"))
+
+    return {
+        "session_id":             session_id,
+        "document_anomalies":     anomaly_data.get("document_anomalies", []),
+        "person_anomalies":       anomaly_data.get("person_anomalies", []),
+        "total_documents":        anomaly_data.get("total_documents", 0),
+        "high_anomaly_count":     anomaly_data.get("high_anomaly_count", 0),
+        "moderate_anomaly_count": anomaly_data.get("moderate_anomaly_count", 0),
+        "cached":                 has_data,
+        "message":                anomaly_data.get(
+            "message",
+            "No anomaly detection run yet. Click 'Detect Anomalies' to analyse.",
+        ),
+    }
+
+
+# --- Run with Uvicorn ---
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
+
