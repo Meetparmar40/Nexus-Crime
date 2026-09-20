@@ -1,27 +1,111 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Dna, 
-  ArrowRight, 
-  Search, 
-  FileText, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Clock, 
-  Network, 
-  Fingerprint, 
-  Layers, 
-  ShieldCheck, 
-  Activity, 
-  Sparkles, 
-  Database, 
-  UploadCloud, 
-  FileCheck,
+import { motion } from 'framer-motion';
+import {
+  Dna,
+  ArrowRight,
+  Search,
+  FileText,
+  CheckCircle2,
+  Clock,
+  Network,
+  Fingerprint,
+  Layers,
+  Activity,
   ChevronRight
 } from 'lucide-react';
 
+const lightCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M3 3l7.5 18 2.5-7.5L20.5 11z'/%3E%3C/svg%3E"), auto`;
+const darkCursor = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M3 3l7.5 18 2.5-7.5L20.5 11z'/%3E%3C/svg%3E"), auto`;
+
+const featuresData = [
+  {
+    icon: FileText,
+    badge: "Docling Integration",
+    title: "Evidence Ingestion",
+    description: "Multi-format parsing for PDF, DOCX, logs, emails, and tables. Preserves structural layouts, tables, and document metadata via Docling without flattening evidence to an unreadable text stream."
+  },
+  {
+    icon: Search,
+    badge: "Multi-Query MMR",
+    title: "Multi-Query MMR RAG",
+    description: "Generates 5 distinct investigative queries and extracts diverse, deduplicated evidence chunks using Maximal Marginal Relevance (MMR) retrieval, avoiding repetitive search artifacts."
+  },
+  {
+    icon: CheckCircle2,
+    badge: "Verifiable Citations",
+    title: "Factual Evidence Grounding",
+    description: "Every finding is strictly cited with its exact source filename. Answers include an explicit Evidence Gaps audit that surfaces unverified details and prevents hallucinations."
+  },
+  {
+    icon: Activity,
+    badge: "Score 0-100 Triage",
+    title: "Anomaly Triage",
+    description: "Evaluates temporal conflicts, behavioral shifts, and structural anomalies on a 0–100 risk score, pinpointing suspicious files and critical discrepancies immediately."
+  }
+];
+
+const useCasesData = [
+  {
+    icon: Clock,
+    badge: "Chronological Audit",
+    title: "Timeline Reconstruction",
+    description: "Chronologically orders events buried across multi-source evidence, with actor and artifact attribution and confidence metrics so guesses are never mistaken for facts.",
+    action: "Filter by Individual Actor"
+  },
+  {
+    icon: Network,
+    badge: "Graph Intelligence",
+    title: "User Profiling & Entity Mapping",
+    description: "Dynamic knowledge graph exposing relationships, communication loops, and suspicious accomplice clusters. Switch between force-directed graph view and itemized entity lists.",
+    action: "Interactive Force Topology"
+  },
+  {
+    icon: Fingerprint,
+    badge: "Forensic Discovery",
+    title: "Insider Threat & Deception",
+    description: "Semantic cue detection within unstructured chats, emails, and audit trails to uncover policy violations, unauthorized exfiltration, and cross-party communication leaks.",
+    action: "Verbatim Text Citation"
+  },
+  {
+    icon: Layers,
+    badge: "Persistent Dossier",
+    title: "Court-Ready Notes",
+    description: "Interactive side-panel that follows you across tabs. Drag entities, timeline milestones, or raw files into notes as clickable deep links that persist per investigation session.",
+    action: "Session Tagging & Export"
+  }
+];
+
+const stepsData = [
+  {
+    num: "01",
+    title: "Create Session & Upload",
+    description: "Create an isolated case session and upload raw evidence files or complete ZIP archives. Cryptographic SHA-256 hashes are automatically calculated to preserve chain-of-custody."
+  },
+  {
+    num: "02",
+    title: "Extract, Index & Score",
+    description: "The backend ingests structured tables, extracts key actors and dates, generates embeddings into an isolated Chroma collection, and flags anomalous behavioral patterns."
+  },
+  {
+    num: "03",
+    title: "Query & Trace Evidence",
+    description: "Ask investigative questions with grounded citations, interactively explore actor graphs, inspect chronological event milestones, and synthesize findings into persistent notes."
+  }
+];
+
 const HeroView = () => {
   const navigate = useNavigate();
+
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('nexus_theme');
+    if (saved) return saved === 'dark';
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('nexus_theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
@@ -30,446 +114,724 @@ const HeroView = () => {
     }
   };
 
+  const theme = isDark ? {
+    bgPage: '#0f1013',
+    bgSection: '#15171c',        // Core Capabilities tone
+    navBg: 'rgba(21, 23, 28, 0.94)', // Matching Core Capabilities
+    bgCard: '#1b1d24',
+    bgCardAlt: '#20232c',
+    border: '#292c35',
+    borderSubtle: '#22252e',
+    textHeading: '#ffffff',
+    textBody: '#c4c6ce',
+    textMuted: '#9aa0ad',
+    navPillBg: '#1f222a',        // Mild dark button tone
+    navPillText: '#f4f4f5',
+    navPillBorder: '#2f3340',    // Mild outline
+    btnPrimaryBg: '#242732',
+    btnPrimaryText: '#ffffff',
+    btnPrimaryBorder: '#3d4255',
+    btnSecondaryBg: '#191b22',
+    btnSecondaryText: '#e2e4ea',
+    btnSecondaryBorder: '#2e3240',
+    badgeBg: '#22252e',
+    ctaBg: '#171920',
+    ctaText: '#ffffff'
+  } : {
+    bgPage: '#ffffff',
+    bgSection: '#f7f7f5',
+    navBg: 'rgba(255, 255, 255, 0.92)',
+    bgCard: '#ffffff',
+    bgCardAlt: '#f2f2ef',
+    border: '#e4e4df',
+    borderSubtle: '#ededeb',
+    textHeading: '#111111',
+    textBody: '#444446',
+    textMuted: '#717175',
+    navPillBg: '#f2f2ef',
+    navPillText: '#111111',
+    navPillBorder: '#e4e4df',
+    btnPrimaryBg: '#111111',
+    btnPrimaryText: '#ffffff',
+    btnPrimaryBorder: '#111111',
+    btnSecondaryBg: '#ffffff',
+    btnSecondaryText: '#111111',
+    btnSecondaryBorder: '#e4e4df',
+    badgeBg: '#eeeeea',
+    ctaBg: '#f7f7f5',
+    ctaText: '#111111'
+  };
+
   return (
-    <div className="min-h-screen bg-white flex flex-col stack-sans-notch text-[#1f1f1f]">
+    <div
+      className="min-h-screen flex flex-col select-none transition-colors duration-200"
+      style={{
+        backgroundColor: theme.bgPage,
+        color: theme.textBody,
+        cursor: isDark ? darkCursor : lightCursor
+      }}
+    >
       {/* ------------------------------------------------------------- */}
-      {/* Navigation Bar                                                */}
+      {/* 1. Navigation Bar (Matches Core Capabilities in Dark Mode)     */}
       {/* ------------------------------------------------------------- */}
-      <nav className="w-full py-5 px-6 sm:px-12 lg:px-16 flex justify-between items-center border-b border-[#f0f0ed] sticky top-0 bg-white/95 backdrop-blur-sm z-50">
-        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div className="w-8 h-8 bg-[#102d25] rounded-[8px] flex items-center justify-center shadow-sm">
-            <Dna size={18} className="text-white" />
+      <nav
+        className="w-full py-4 px-6 sm:px-12 sticky top-0 backdrop-blur-md z-50 transition-colors duration-200"
+        style={{
+          backgroundColor: theme.navBg,
+          borderBottom: `1px solid ${theme.border}`
+        }}
+      >
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          {/* Logo */}
+          <div
+            className="flex items-center gap-2.5 cursor-pointer"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              style={{
+                backgroundColor: isDark ? '#ffffff' : '#111111',
+                color: isDark ? '#111111' : '#ffffff'
+              }}
+            >
+              <Dna size={18} />
+            </div>
+            <span
+              className="font-bold text-lg tracking-tight transition-colors"
+              style={{ color: theme.textHeading }}
+            >
+              CrimeNexus
+            </span>
           </div>
-          <span className="font-medium text-[19px] tracking-tight text-[#1f1f1f]">
-            CrimeNexus
-          </span>
-        </div>
 
-        {/* Clean Nav Links connected to sections */}
-        <div className="hidden md:flex items-center gap-8 text-[15px] text-[#1f1f1f] font-medium">
-          <button 
-            onClick={() => scrollToSection('features')}
-            className="hover:opacity-70 transition-opacity cursor-pointer"
-          >
-            Features
-          </button>
-          <button 
-            onClick={() => scrollToSection('use-cases')}
-            className="hover:opacity-70 transition-opacity cursor-pointer"
-          >
-            Use cases
-          </button>
-          <button 
-            onClick={() => scrollToSection('how-it-works')}
-            className="hover:opacity-70 transition-opacity cursor-pointer"
-          >
-            How it works
-          </button>
-        </div>
+          {/* Nav Links (Styled with Mild Dark Outline & Crisp Text) */}
+          <div className="hidden md:flex items-center gap-2.5">
+            <button
+              onClick={() => scrollToSection('features')}
+              className="px-4 py-1.5 rounded-full text-[13.5px] font-medium transition-all cursor-pointer hover:opacity-85"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
+            >
+              Features
+            </button>
+            <button
+              onClick={() => scrollToSection('use-cases')}
+              className="px-4 py-1.5 rounded-full text-[13.5px] font-medium transition-all cursor-pointer hover:opacity-85"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
+            >
+              Use cases
+            </button>
+            <button
+              onClick={() => scrollToSection('how-it-works')}
+              className="px-4 py-1.5 rounded-full text-[13.5px] font-medium transition-all cursor-pointer hover:opacity-85"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
+            >
+              How it works
+            </button>
+          </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-4 sm:gap-6">
-          <button
-            onClick={() => navigate('/login')}
-            className="text-[15px] font-medium text-[#1f1f1f] hover:opacity-70 transition-opacity cursor-pointer"
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => navigate('/c')}
-            className="text-[15px] font-medium text-white bg-[#102d25] px-6 py-2.5 rounded-full hover:bg-[#0a1f19] transition-colors shadow-sm cursor-pointer"
-          >
-            Start Investigating
-          </button>
+          {/* Action Row: Theme Toggle + Sign In */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsDark(!isDark)}
+              className="px-3.5 py-1.5 rounded-full flex items-center gap-2 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:opacity-90"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDark ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                  </svg>
+                  <span>Light</span>
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                  </svg>
+                  <span>Dark</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="text-[13.5px] font-semibold px-5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm hover:opacity-90"
+              style={{
+                backgroundColor: theme.btnSecondaryBg,
+                color: theme.btnSecondaryText,
+                border: `1px solid ${theme.btnSecondaryBorder}`
+              }}
+            >
+              Sign In
+            </button>
+          </div>
         </div>
       </nav>
 
       {/* ------------------------------------------------------------- */}
-      {/* Hero Section                                                  */}
+      {/* 2. Hero Section: Full Viewport with Rounded Floating Image   */}
       {/* ------------------------------------------------------------- */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center px-6 sm:px-12 lg:px-16 max-w-screen-2xl mx-auto w-full py-12 lg:py-20 gap-12 lg:gap-16">
-        {/* Left Column */}
-        <div className="flex-1 max-w-[640px]">
-          <h1 className="text-5xl sm:text-6xl lg:text-[72px] font-black text-[#1a1a1a] tracking-tight leading-[1.05] mb-7">
-            Investigate{' '}
-            <span className="relative inline-block">
-              smarter.
-              <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 260 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2 7 C65 2, 195 2, 258 7" stroke="#1a1a1a" strokeWidth="3.5" strokeLinecap="round" />
-              </svg>
-            </span>
-          </h1>
+      <main className="min-h-[calc(100vh-73px)] flex items-center justify-center w-full px-6 sm:px-12 py-10">
+        <div className="max-w-6xl mx-auto w-full flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
 
-          <p className="text-[#555] text-lg sm:text-xl leading-relaxed mb-10 max-w-[500px]">
-            AI-powered digital forensics — analyze evidence, build timelines, uncover connections, and get answers from your case files instantly.
-          </p>
-
-          {/* CTA Row */}
-          <div className="flex flex-wrap gap-4 mb-14">
-            <button
-              onClick={() => navigate('/c')}
-              className="bg-[#1f1f1f] text-white font-bold px-8 py-4 rounded-full text-[16px] hover:bg-black transition-colors shadow-md flex items-center gap-2 cursor-pointer"
+          {/* Left Text */}
+          <motion.div
+            initial={{ opacity: 0, x: -35 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="flex-1 max-w-[540px] text-left"
+          >
+            <h1
+              className="text-4xl sm:text-5xl lg:text-[62px] font-black tracking-tight leading-[1.05] mb-6"
+              style={{ color: theme.textHeading }}
             >
-              <span>Start Investigating</span>
-              <ArrowRight size={17} />
-            </button>
-            <button
-              onClick={() => navigate('/login')}
-              className="text-[#1f1f1f] font-bold px-8 py-4 rounded-full text-[16px] border border-[#d4d4d4] hover:bg-gray-50 transition-colors cursor-pointer"
+              Investigate{' '}
+              <span className="relative inline-block">
+                smarter.
+                <svg
+                  className="absolute -bottom-1.5 left-0 w-full"
+                  viewBox="0 0 260 10"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M2 7 C65 2, 195 2, 258 7"
+                    stroke={theme.textHeading}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </h1>
+
+            <p
+              className="text-base sm:text-lg leading-relaxed mb-8 max-w-[480px]"
+              style={{ color: theme.textBody }}
             >
-              Sign In
-            </button>
-          </div>
+              AI-powered digital forensics — analyze evidence, build timelines, uncover connections, and get answers from your case files instantly.
+            </p>
 
-          {/* Stats Row */}
-          <div className="flex items-start gap-8 sm:gap-10 pb-6">
-            <div>
-              <p className="text-3xl sm:text-[44px] font-black text-[#1a1a1a] tracking-tight leading-none">98.4%</p>
-              <p className="text-[#888] text-[15px] mt-2 font-medium">Evidence accuracy</p>
+            {/* CTAs */}
+            <div className="flex flex-wrap gap-3.5 mb-10">
+              <button
+                type="button"
+                onClick={() => navigate('/c')}
+                className="font-bold px-7 py-3.5 rounded-full text-[15px] transition-all shadow-sm flex items-center gap-2 cursor-pointer hover:opacity-90"
+                style={{
+                  backgroundColor: theme.btnPrimaryBg,
+                  color: theme.btnPrimaryText,
+                  border: `1px solid ${theme.btnPrimaryBorder}`
+                }}
+              >
+                <span>Start Investigating</span>
+                <ArrowRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="font-semibold px-6 py-3.5 rounded-full text-[15px] transition-all cursor-pointer hover:opacity-85"
+                style={{
+                  backgroundColor: theme.btnSecondaryBg,
+                  color: theme.btnSecondaryText,
+                  border: `1px solid ${theme.btnSecondaryBorder}`
+                }}
+              >
+                Sign In
+              </button>
             </div>
-            <div className="w-px h-16 bg-gray-200 mt-1" />
-            <div>
-              <p className="text-3xl sm:text-[44px] font-black text-[#1a1a1a] tracking-tight leading-none">~10x</p>
-              <p className="text-[#888] text-[15px] mt-2 font-medium">Faster case analysis</p>
-            </div>
-            <div className="w-px h-16 bg-gray-200 mt-1 hidden sm:block" />
-            <div className="hidden sm:block">
-              <p className="text-3xl sm:text-[44px] font-black text-[#1a1a1a] tracking-tight leading-none">0%</p>
-              <p className="text-[#888] text-[15px] mt-2 font-medium">Model hallucination</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Right Column - Illustration */}
-        <div className="flex-1 flex items-center justify-center w-full">
-          <div className="relative w-full max-w-[640px] rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.08)] border border-[#e8e8e4]">
-            <img
-              src="/illustrater.jpg"
-              alt="CrimeNexus Forensic Dashboard Illustration"
-              className="w-full h-auto object-contain block"
-            />
-          </div>
+            {/* Metrics */}
+            <div className="flex items-start gap-6 sm:gap-8 pt-2">
+              <div>
+                <p
+                  className="text-2xl sm:text-3xl font-black tracking-tight leading-none"
+                  style={{ color: theme.textHeading }}
+                >
+                  98.4%
+                </p>
+                <p className="text-xs sm:text-sm mt-1.5 font-medium" style={{ color: theme.textMuted }}>
+                  Evidence accuracy
+                </p>
+              </div>
+              <div className="w-px h-10 mt-1" style={{ backgroundColor: theme.border }} />
+              <div>
+                <p
+                  className="text-2xl sm:text-3xl font-black tracking-tight leading-none"
+                  style={{ color: theme.textHeading }}
+                >
+                  ~10x
+                </p>
+                <p className="text-xs sm:text-sm mt-1.5 font-medium" style={{ color: theme.textMuted }}>
+                  Faster case analysis
+                </p>
+              </div>
+              <div className="w-px h-10 mt-1 hidden sm:block" style={{ backgroundColor: theme.border }} />
+              <div className="hidden sm:block">
+                <p
+                  className="text-2xl sm:text-3xl font-black tracking-tight leading-none"
+                  style={{ color: theme.textHeading }}
+                >
+                  0%
+                </p>
+                <p className="text-xs sm:text-sm mt-1.5 font-medium" style={{ color: theme.textMuted }}>
+                  Model hallucination
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right Column: Rounded Floating Graphic Card with Ambient Shadow */}
+          <motion.div
+            initial={{ opacity: 0, x: 35 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+            className="flex-1 flex items-center justify-center w-full max-w-[430px] lg:max-w-[460px]"
+          >
+            <div
+              className="w-full rounded-3xl overflow-hidden p-3 transition-all duration-300"
+              style={{
+                backgroundColor: '#ffffff',
+                boxShadow: isDark
+                  ? '0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08)'
+                  : '0 20px 45px -12px rgba(0, 0, 0, 0.1), 0 0 0 1px #e8e8e4'
+              }}
+            >
+              <img
+                src="/illustrater.jpg"
+                alt="Forensic Dashboard Illustration"
+                className="w-full h-auto max-h-[350px] object-contain block rounded-2xl"
+              />
+            </div>
+          </motion.div>
         </div>
       </main>
 
       {/* ------------------------------------------------------------- */}
-      {/* Section 1: Features                                           */}
+      {/* 3. Section 1: Features                                        */}
       {/* ------------------------------------------------------------- */}
-      <section id="features" className="py-24 px-6 sm:px-12 lg:px-16 border-t border-[#f0f0ed] bg-[#fbfbfa]">
-        <div className="max-w-screen-2xl mx-auto">
-          {/* Section Header */}
-          <div className="max-w-2xl mb-16">
-            <span className="inline-block text-xs uppercase tracking-widest font-semibold text-[#102d25] bg-[#102d25]/5 border border-[#102d25]/15 px-3.5 py-1 rounded-full mb-3">
+      <section
+        id="features"
+        className="py-24 px-6 sm:px-12 transition-colors duration-200"
+        style={{
+          backgroundColor: theme.bgSection,
+          borderTop: `1px solid ${theme.border}`
+        }}
+      >
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-2xl mb-14">
+            <span
+              className="inline-block text-xs uppercase tracking-widest font-mono font-bold px-3 py-1 rounded-full mb-3"
+              style={{
+                backgroundColor: theme.badgeBg,
+                border: `1px solid ${theme.border}`,
+                color: theme.textHeading
+              }}
+            >
               Core Capabilities
             </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1a1a1a] tracking-tight mb-4">
+            <h2
+              className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight mb-3.5"
+              style={{ color: theme.textHeading }}
+            >
               Precision Engineering for Forensic Evidence
             </h2>
-            <p className="text-[#666] text-lg leading-relaxed">
+            <p className="text-base leading-relaxed" style={{ color: theme.textBody }}>
               Purpose-built retrieval and analytical pipelines designed specifically for digital evidence integrity and zero-gap case analysis.
             </p>
           </div>
 
-          {/* 4 Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Feature 1 */}
-            <div className="p-8 sm:p-10 rounded-3xl bg-white border border-[#e8e8e4] hover:border-[#102d25]/30 hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-[#102d25]/5 border border-[#102d25]/10 flex items-center justify-center mb-6 text-[#102d25]">
-                <FileText size={22} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#102d25] bg-[#102d25]/5 px-2.5 py-0.5 rounded-full">
-                  Docling Integration
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                Evidence Ingestion
-              </h3>
-              <p className="text-[#555] text-base leading-relaxed">
-                Multi-format parsing for PDF, DOCX, DOC, PPTX, RTF, logs, emails, and CSV. Preserves tables, metadata, and structural layouts via Docling models rather than flattening evidence to an unreadable wall of text.
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {featuresData.map((feature) => {
+              const IconComp = feature.icon;
+              return (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-60px" }}
+                  whileHover={{ y: -4, scale: 1.015 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-8 rounded-2xl transition-all duration-200"
+                  style={{
+                    backgroundColor: theme.bgCard,
+                    border: `1px solid ${theme.border}`
+                  }}
+                >
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center mb-5"
+                    style={{
+                      backgroundColor: theme.badgeBg,
+                      border: `1px solid ${theme.borderSubtle}`,
+                      color: theme.textHeading
+                    }}
+                  >
+                    <IconComp size={20} />
+                  </div>
 
-            {/* Feature 2 */}
-            <div className="p-8 sm:p-10 rounded-3xl bg-white border border-[#e8e8e4] hover:border-[#102d25]/30 hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-[#102d25]/5 border border-[#102d25]/10 flex items-center justify-center mb-6 text-[#102d25]">
-                <Search size={22} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#102d25] bg-[#102d25]/5 px-2.5 py-0.5 rounded-full">
-                  5x Multi-Query Pipeline
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                Multi-Query MMR RAG
-              </h3>
-              <p className="text-[#555] text-base leading-relaxed">
-                Rewrites investigative questions into 4 alternate phrasings alongside the original. Each runs through an MMR retriever (k=4, fetch_k=8) that trades off pure similarity against diversity, merging approximately 20 unique evidence chunks.
-              </p>
-            </div>
+                  <div className="mb-2">
+                    <span
+                      className="text-[11px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md"
+                      style={{
+                        backgroundColor: theme.badgeBg,
+                        border: `1px solid ${theme.borderSubtle}`,
+                        color: theme.textMuted
+                      }}
+                    >
+                      {feature.badge}
+                    </span>
+                  </div>
 
-            {/* Feature 3 */}
-            <div className="p-8 sm:p-10 rounded-3xl bg-white border border-[#e8e8e4] hover:border-[#102d25]/30 hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-[#102d25]/5 border border-[#102d25]/10 flex items-center justify-center mb-6 text-[#102d25]">
-                <CheckCircle2 size={22} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#102d25] bg-[#102d25]/5 px-2.5 py-0.5 rounded-full">
-                  Verifiable Citations
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                Factual Evidence Grounding
-              </h3>
-              <p className="text-[#555] text-base leading-relaxed">
-                Every claim is cited with its exact source filename. Answers come structured with an explicit Evidence Gaps audit that directly reports what could not be substantiated from the documents, strictly preventing generative hallucination.
-              </p>
-            </div>
+                  <h3
+                    className="text-xl font-bold tracking-tight mb-2.5"
+                    style={{ color: theme.textHeading }}
+                  >
+                    {feature.title}
+                  </h3>
 
-            {/* Feature 4 */}
-            <div className="p-8 sm:p-10 rounded-3xl bg-white border border-[#e8e8e4] hover:border-[#102d25]/30 hover:shadow-lg transition-all duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-[#102d25]/5 border border-[#102d25]/10 flex items-center justify-center mb-6 text-[#102d25]">
-                <Activity size={22} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#102d25] bg-[#102d25]/5 px-2.5 py-0.5 rounded-full">
-                  Score 0-100 Triage
-                </span>
-              </div>
-              <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                Anomaly Triage
-              </h3>
-              <p className="text-[#555] text-base leading-relaxed">
-                Automatic multi-dimensional scoring evaluating temporal conflicts, behavioral anomalies, and structural patterns out of 100. Pinpoints high-risk documents immediately so legal examiners know exactly which file to inspect first.
-              </p>
-            </div>
+                  <p className="text-sm leading-relaxed" style={{ color: theme.textBody }}>
+                    {feature.description}
+                  </p>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* Section 2: Use Cases                                          */}
+      {/* 4. Section 2: Use Cases                                       */}
       {/* ------------------------------------------------------------- */}
-      <section id="use-cases" className="py-24 px-6 sm:px-12 lg:px-16 border-t border-[#f0f0ed] bg-white">
-        <div className="max-w-screen-2xl mx-auto">
-          {/* Section Header */}
-          <div className="max-w-2xl mb-16">
-            <span className="inline-block text-xs uppercase tracking-widest font-semibold text-[#102d25] bg-[#102d25]/5 border border-[#102d25]/15 px-3.5 py-1 rounded-full mb-3">
+      <section
+        id="use-cases"
+        className="py-24 px-6 sm:px-12 transition-colors duration-200"
+        style={{
+          backgroundColor: theme.bgPage,
+          borderTop: `1px solid ${theme.border}`
+        }}
+      >
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-2xl mb-14">
+            <span
+              className="inline-block text-xs uppercase tracking-widest font-mono font-bold px-3 py-1 rounded-full mb-3"
+              style={{
+                backgroundColor: theme.badgeBg,
+                border: `1px solid ${theme.border}`,
+                color: theme.textHeading
+              }}
+            >
               Operational Workflows
             </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1a1a1a] tracking-tight mb-4">
+            <h2
+              className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight mb-3.5"
+              style={{ color: theme.textHeading }}
+            >
               Built for High-Stakes Forensic Investigations
             </h2>
-            <p className="text-[#666] text-lg leading-relaxed">
+            <p className="text-base leading-relaxed" style={{ color: theme.textBody }}>
               Explore how investigators, legal analysts, and cyber-forensic teams unravel complex cases with CrimeNexus.
             </p>
           </div>
 
-          {/* 4 Use Case Highlights */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Use Case 1 */}
-            <div className="p-7 rounded-3xl bg-[#fafafa] border border-[#e8e8e4] flex flex-col justify-between hover:bg-white hover:border-[#102d25]/30 hover:shadow-md transition-all duration-300">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-[#102d25]/5 flex items-center justify-center mb-5 text-[#102d25]">
-                  <Clock size={20} />
-                </div>
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#888] block mb-1">
-                  Chronological Audit
-                </span>
-                <h3 className="text-xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                  Timeline Reconstruction
-                </h3>
-                <p className="text-[#666] text-sm leading-relaxed mb-6">
-                  Chronologically orders events buried across multi-source evidence, with actor and artifact attribution and confidence metrics so guesses are never mistaken for facts.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-[#e8e8e4] text-xs font-semibold text-[#102d25] flex items-center gap-1">
-                <span>Filter by Individual Actor</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {useCasesData.map((uc) => {
+              const IconComp = uc.icon;
+              return (
+                <motion.div
+                  key={uc.title}
+                  initial={{ opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-60px" }}
+                  whileHover={{ y: -4, scale: 1.015 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-6 rounded-2xl flex flex-col justify-between transition-all duration-200"
+                  style={{
+                    backgroundColor: theme.bgCardAlt,
+                    border: `1px solid ${theme.border}`
+                  }}
+                >
+                  <div>
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+                      style={{
+                        backgroundColor: theme.bgCard,
+                        border: `1px solid ${theme.border}`,
+                        color: theme.textHeading
+                      }}
+                    >
+                      <IconComp size={18} />
+                    </div>
 
-            {/* Use Case 2 */}
-            <div className="p-7 rounded-3xl bg-[#fafafa] border border-[#e8e8e4] flex flex-col justify-between hover:bg-white hover:border-[#102d25]/30 hover:shadow-md transition-all duration-300">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-[#102d25]/5 flex items-center justify-center mb-5 text-[#102d25]">
-                  <Network size={20} />
-                </div>
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#888] block mb-1">
-                  Graph Intelligence
-                </span>
-                <h3 className="text-xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                  User Profiling & Entity Mapping
-                </h3>
-                <p className="text-[#666] text-sm leading-relaxed mb-6">
-                  Dynamic knowledge graph exposing relationships, communication loops, and suspicious accomplice clusters. Switch between force-directed graph view and itemized entity lists.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-[#e8e8e4] text-xs font-semibold text-[#102d25] flex items-center gap-1">
-                <span>Interactive Force Topology</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
+                    <span
+                      className="text-[11px] font-mono font-bold uppercase tracking-wider block mb-1.5"
+                      style={{ color: theme.textMuted }}
+                    >
+                      {uc.badge}
+                    </span>
 
-            {/* Use Case 3 */}
-            <div className="p-7 rounded-3xl bg-[#fafafa] border border-[#e8e8e4] flex flex-col justify-between hover:bg-white hover:border-[#102d25]/30 hover:shadow-md transition-all duration-300">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-[#102d25]/5 flex items-center justify-center mb-5 text-[#102d25]">
-                  <Fingerprint size={20} />
-                </div>
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#888] block mb-1">
-                  Forensic Discovery
-                </span>
-                <h3 className="text-xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                  Insider Threat & Deception
-                </h3>
-                <p className="text-[#666] text-sm leading-relaxed mb-6">
-                  Semantic cue detection within unstructured chats, emails, and audit trails to uncover policy violations, unauthorized exfiltration, and cross-party communication leaks.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-[#e8e8e4] text-xs font-semibold text-[#102d25] flex items-center gap-1">
-                <span>Verbatim Text Citation</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
+                    <h3
+                      className="text-lg font-bold tracking-tight mb-2"
+                      style={{ color: theme.textHeading }}
+                    >
+                      {uc.title}
+                    </h3>
 
-            {/* Use Case 4 */}
-            <div className="p-7 rounded-3xl bg-[#fafafa] border border-[#e8e8e4] flex flex-col justify-between hover:bg-white hover:border-[#102d25]/30 hover:shadow-md transition-all duration-300">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-[#102d25]/5 flex items-center justify-center mb-5 text-[#102d25]">
-                  <Layers size={20} />
-                </div>
-                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#888] block mb-1">
-                  Persistent Dossier
-                </span>
-                <h3 className="text-xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                  Court-Ready Notes
-                </h3>
-                <p className="text-[#666] text-sm leading-relaxed mb-6">
-                  Interactive side-panel that follows you across tabs. Drag entities, timeline milestones, or raw files into notes as clickable deep links that persist per investigation session.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-[#e8e8e4] text-xs font-semibold text-[#102d25] flex items-center gap-1">
-                <span>Session Tagging & Export</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
+                    <p className="text-xs leading-relaxed mb-6" style={{ color: theme.textBody }}>
+                      {uc.description}
+                    </p>
+                  </div>
+
+                  <div
+                    className="pt-3.5 text-xs font-bold flex items-center justify-between"
+                    style={{
+                      borderTop: `1px solid ${theme.border}`,
+                      color: theme.textHeading
+                    }}
+                  >
+                    <span>{uc.action}</span>
+                    <ChevronRight size={13} />
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* Section 3: How It Works                                       */}
+      {/* 5. Section 3: Workflow Guide                                  */}
       {/* ------------------------------------------------------------- */}
-      <section id="how-it-works" className="py-24 px-6 sm:px-12 lg:px-16 border-t border-[#f0f0ed] bg-[#fbfbfa]">
-        <div className="max-w-screen-2xl mx-auto">
-          {/* Section Header */}
-          <div className="max-w-2xl mb-16">
-            <span className="inline-block text-xs uppercase tracking-widest font-semibold text-[#102d25] bg-[#102d25]/5 border border-[#102d25]/15 px-3.5 py-1 rounded-full mb-3">
+      <section
+        id="how-it-works"
+        className="py-24 px-6 sm:px-12 transition-colors duration-200"
+        style={{
+          backgroundColor: theme.bgSection,
+          borderTop: `1px solid ${theme.border}`
+        }}
+      >
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-2xl mb-14">
+            <span
+              className="inline-block text-xs uppercase tracking-widest font-mono font-bold px-3 py-1 rounded-full mb-3"
+              style={{
+                backgroundColor: theme.badgeBg,
+                border: `1px solid ${theme.border}`,
+                color: theme.textHeading
+              }}
+            >
               Workflow Guide
             </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1a1a1a] tracking-tight mb-4">
+            <h2
+              className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight mb-3.5"
+              style={{ color: theme.textHeading }}
+            >
               From Raw Evidence to Clear Proof in Three Steps
             </h2>
-            <p className="text-[#666] text-lg leading-relaxed">
+            <p className="text-base leading-relaxed" style={{ color: theme.textBody }}>
               Zero manual vector plumbing. Fast, intuitive, and isolated by default.
             </p>
           </div>
 
-          {/* 3 Step Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="p-8 sm:p-10 rounded-3xl bg-white border border-[#e8e8e4] relative hover:shadow-md transition-all duration-300">
-              <div className="text-2xl font-black text-[#102d25] bg-[#102d25]/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-8 font-mono">
-                01
-              </div>
-              <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                Create Session & Upload
-              </h3>
-              <p className="text-[#555] text-base leading-relaxed">
-                Create an isolated case session and upload raw evidence files or complete ZIP archives. Cryptographic SHA-256 hashes are automatically calculated to preserve chain-of-custody.
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {stepsData.map((step, index) => (
+              <motion.div
+                key={step.num}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                whileHover={{ y: -4, scale: 1.015 }}
+                transition={{ duration: 0.4, delay: index * 0.15 }}
+                className="p-8 rounded-2xl relative transition-all duration-200"
+                style={{
+                  backgroundColor: theme.bgCard,
+                  border: `1px solid ${theme.border}`
+                }}
+              >
+                <div
+                  className="text-xl font-black w-11 h-11 rounded-xl flex items-center justify-center mb-6 font-mono"
+                  style={{
+                    backgroundColor: theme.badgeBg,
+                    border: `1px solid ${theme.border}`,
+                    color: theme.textHeading
+                  }}
+                >
+                  {step.num}
+                </div>
+
+                <h3
+                  className="text-xl font-bold tracking-tight mb-2.5"
+                  style={{ color: theme.textHeading }}
+                >
+                  {step.title}
+                </h3>
+
+                <p className="text-sm leading-relaxed" style={{ color: theme.textBody }}>
+                  {step.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 6. Pre-Footer Banner                                          */}
+      {/* ------------------------------------------------------------- */}
+      <section className="py-16 sm:py-20 px-6 sm:px-12">
+        <div className="max-w-6xl mx-auto">
+          <div
+            className="p-10 sm:p-14 rounded-3xl transition-all duration-200 flex flex-col lg:flex-row items-center justify-between gap-8 shadow-sm"
+            style={{
+              backgroundColor: theme.ctaBg,
+              border: `1px solid ${theme.border}`
+            }}
+          >
+            <div className="max-w-xl text-center lg:text-left">
+              <h2
+                className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight mb-3"
+                style={{ color: theme.ctaText }}
+              >
+                Ready to accelerate your forensic investigations?
+              </h2>
+              <p
+                className="text-sm sm:text-base leading-relaxed"
+                style={{ color: theme.textMuted }}
+              >
+                Start exploring your case evidence with AI-assisted clarity, strict citations, and zero hallucinations.
               </p>
             </div>
 
-            {/* Step 2 */}
-            <div className="p-8 sm:p-10 rounded-3xl bg-white border border-[#e8e8e4] relative hover:shadow-md transition-all duration-300">
-              <div className="text-2xl font-black text-[#102d25] bg-[#102d25]/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-8 font-mono">
-                02
-              </div>
-              <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                Extract, Index & Score
-              </h3>
-              <p className="text-[#555] text-base leading-relaxed">
-                The backend ingests structured tables, extracts key actors and dates, generates embeddings into an isolated Chroma collection, and flags anomalous behavioral patterns.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="p-8 sm:p-10 rounded-3xl bg-white border border-[#e8e8e4] relative hover:shadow-md transition-all duration-300">
-              <div className="text-2xl font-black text-[#102d25] bg-[#102d25]/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-8 font-mono">
-                03
-              </div>
-              <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight mb-3">
-                Query & Trace Evidence
-              </h3>
-              <p className="text-[#555] text-base leading-relaxed">
-                Ask investigative questions with grounded citations, interactively explore actor graphs, inspect chronological event milestones, and synthesize findings into persistent notes.
-              </p>
+            <div className="flex flex-wrap gap-3.5 items-center justify-center">
+              <button
+                type="button"
+                onClick={() => navigate('/c')}
+                className="font-bold px-7 py-3.5 rounded-full text-[15px] transition-all shadow-sm flex items-center gap-2 cursor-pointer hover:opacity-90"
+                style={{
+                  backgroundColor: theme.btnPrimaryBg,
+                  color: theme.btnPrimaryText,
+                  border: `1px solid ${theme.btnPrimaryBorder}`
+                }}
+              >
+                <span>Launch CrimeNexus</span>
+                <ArrowRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="font-semibold px-6 py-3.5 rounded-full text-[15px] transition-all cursor-pointer hover:opacity-85"
+                style={{
+                  backgroundColor: theme.btnSecondaryBg,
+                  color: theme.btnSecondaryText,
+                  border: `1px solid ${theme.btnSecondaryBorder}`
+                }}
+              >
+                Sign In
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       {/* ------------------------------------------------------------- */}
-      {/* Bottom CTA Banner                                             */}
+      {/* 7. Footer (Matches Mild Outline Styling)                      */}
       {/* ------------------------------------------------------------- */}
-      <section className="py-20 px-6 sm:px-12 lg:px-16 bg-[#102d25] text-white">
-        <div className="max-w-screen-2xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-10">
-          <div className="max-w-2xl text-center lg:text-left">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-4 text-white">
-              Ready to accelerate your forensic investigations?
-            </h2>
-            <p className="text-white/80 text-lg">
-              Start exploring your case evidence with AI-assisted clarity, strict citations, and zero hallucinations.
-            </p>
+      <footer
+        className="py-8 px-6 sm:px-12 text-xs transition-colors duration-200"
+        style={{
+          backgroundColor: theme.bgPage,
+          borderTop: `1px solid ${theme.border}`
+        }}
+      >
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+              style={{
+                backgroundColor: isDark ? '#ffffff' : '#111111',
+                color: isDark ? '#111111' : '#ffffff'
+              }}
+            >
+              <Dna size={13} />
+            </div>
+            <span className="font-bold" style={{ color: theme.textHeading }}>
+              CrimeNexus
+            </span>
+            <span className="hidden sm:inline" style={{ color: theme.textMuted }}>
+              — AI-Powered Digital Forensics & Investigation Intelligence
+            </span>
           </div>
 
-          <div className="flex flex-wrap gap-4 items-center justify-center">
+          <div className="flex items-center gap-2.5 font-medium">
             <button
-              onClick={() => navigate('/c')}
-              className="bg-white text-[#102d25] font-bold px-8 py-4 rounded-full text-base hover:bg-gray-100 transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
+              onClick={() => scrollToSection('features')}
+              className="px-3 py-1 rounded-full transition-all cursor-pointer hover:opacity-80"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
             >
-              <span>Launch CrimeNexus</span>
-              <ArrowRight size={17} />
+              Features
+            </button>
+            <button
+              onClick={() => scrollToSection('use-cases')}
+              className="px-3 py-1 rounded-full transition-all cursor-pointer hover:opacity-80"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
+            >
+              Use Cases
+            </button>
+            <button
+              onClick={() => scrollToSection('how-it-works')}
+              className="px-3 py-1 rounded-full transition-all cursor-pointer hover:opacity-80"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
+            >
+              How It Works
             </button>
             <button
               onClick={() => navigate('/login')}
-              className="text-white font-bold px-8 py-4 rounded-full text-base border border-white/30 hover:bg-white/10 transition-colors cursor-pointer"
+              className="px-3 py-1 rounded-full transition-all cursor-pointer hover:opacity-80"
+              style={{
+                backgroundColor: theme.navPillBg,
+                color: theme.navPillText,
+                border: `1px solid ${theme.navPillBorder}`
+              }}
             >
               Sign In
             </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------- */}
-      {/* Footer                                                        */}
-      {/* ------------------------------------------------------------- */}
-      <footer className="py-10 px-6 sm:px-12 lg:px-16 border-t border-[#f0f0ed] bg-white text-xs text-[#888]">
-        <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-[#102d25] rounded-[6px] flex items-center justify-center">
-              <Dna size={14} className="text-white" />
-            </div>
-            <span className="font-semibold text-[#1f1f1f]">CrimeNexus</span>
-            <span>— AI-Powered Digital Forensics & Investigation Intelligence</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <button onClick={() => scrollToSection('features')} className="hover:text-[#1f1f1f] transition-colors cursor-pointer">Features</button>
-            <button onClick={() => scrollToSection('use-cases')} className="hover:text-[#1f1f1f] transition-colors cursor-pointer">Use Cases</button>
-            <button onClick={() => scrollToSection('how-it-works')} className="hover:text-[#1f1f1f] transition-colors cursor-pointer">How It Works</button>
-            <button onClick={() => navigate('/login')} className="hover:text-[#1f1f1f] transition-colors cursor-pointer">Sign In</button>
           </div>
         </div>
       </footer>
